@@ -9,23 +9,21 @@ Work on Windows, linux, macOS
 
 ## Installation:
 
-1 - Download the Zip file and extract it somewhere
-[Download the app](https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp/releases)
+1 - Download the [Zip file](https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp/releases) and extract it somewhere.
 
-1 - Edit the `settings.json` file by providing your Microsoft account information to the `accounts` section.
-You can put reward goals, if you want to the `rewards` section. 
+
+2 - Edit the `Settings.json` file by providing your Microsoft account information to the `Accounts` section.
+You can put reward goals, if you want to the `Rewards` section. 
 
 This should look like:
 
 ```json
 {
-  "Accounts": [
-    {
+  "Accounts": [{
       "Username": "you@domain.com",
       "Password": "yourPassword"
     }],
-  "Rewards": [
-    {
+  "Rewards": [{
       "Title": "Your Reward",
       "Cost": 10000,
       "Discounted": 6000
@@ -36,5 +34,7 @@ This should look like:
 ## Running
 
 Start `Microsoft Rewards Farmer.exe`
+
+
 
 Licensed under WTFPL
