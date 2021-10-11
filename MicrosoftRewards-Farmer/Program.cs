@@ -65,7 +65,7 @@ namespace MicrosoftRewardsFarmer
 
         private static Settings GetSettings()
 		{
-			var settingsJson = File.ReadAllText("settings.json");
+			var settingsJson = File.ReadAllText("Settings.json");
 			return JsonConvert.DeserializeObject<Settings>(settingsJson);
 		}
 		#endregion
