@@ -11,16 +11,22 @@ namespace MicrosoftRewardsFarmer
 	class Program
 	{
 		#region Variables
+		internal const bool KeepBrowserAlive
+#if DEBUG
+			= false;
+#else
+			= false;
+#endif
 		static readonly List<Farmer> farmers = new List<Farmer>();
 		static readonly List<Task> tasks = new List<Task>();
 		static IExitSignal exitSignal;
-		#endregion
+#endregion
 
-		#region Properties
+#region Properties
 		public static Settings Settings { get; private set; }
-		#endregion
+#endregion
 
-		#region Methods
+#region Methods
 		static void Main(string[] args)
 		{
 			Settings = GetSettings();
@@ -68,6 +74,6 @@ namespace MicrosoftRewardsFarmer
 			var settingsJson = File.ReadAllText("Settings.json");
 			return JsonConvert.DeserializeObject<Settings>(settingsJson);
 		}
-		#endregion
+#endregion
 	}
 }

@@ -1,4 +1,5 @@
-﻿using PuppeteerSharp;
+﻿using Newtonsoft.Json.Linq;
+using PuppeteerSharp;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -23,7 +24,7 @@ namespace MicrosoftRewardsFarmer
                 Args = new string[] {
                     "--incognito",
                   },
-                Headless = false
+                Headless = false,
             });
         }
 

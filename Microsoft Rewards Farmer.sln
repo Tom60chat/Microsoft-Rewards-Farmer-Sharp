@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31702.278
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MicrosoftRewards-Farmer", "MicrosoftRewards-Farmer\MicrosoftRewards-Farmer.csproj", "{115D5443-9060-4113-BA74-A7F2772450B0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft Rewards Farmer", "MicrosoftRewards-Farmer\Microsoft Rewards Farmer.csproj", "{115D5443-9060-4113-BA74-A7F2772450B0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

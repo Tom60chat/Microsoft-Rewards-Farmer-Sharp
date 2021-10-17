@@ -1,9 +1,11 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
+using PuppeteerSharp.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -23,6 +25,9 @@ namespace MicrosoftRewardsFarmer
 		#endregion
 
 		#region Variables
+		const string defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36 Edg/93.0.961.52";
+		ViewPortOptions defaultViewport;
+		bool mobile = false;
 		Browser browser;
 		Page page;
         readonly Credentials credentials;
@@ -35,28 +40,55 @@ namespace MicrosoftRewardsFarmer
 			if (farming) return;
 
 			farming = true;
-			browser = await PuppeteerUtility.GetBrowser();
+
+			try
+			{
+				if (Program.KeepBrowserAlive && File.Exists("lastBrowserWS.txt"))
+				{
+					var wsEndPoint = File.ReadAllText("lastBrowserWS.txt");
+					browser = await Puppeteer.ConnectAsync(new ConnectOptions()
+					{
+						BrowserWSEndpoint = wsEndPoint
+					});
+				}
+				else
+				{
+					browser = await PuppeteerUtility.GetBrowser();
+					if (Program.KeepBrowserAlive)
+						File.WriteAllText("lastBrowserWS.txt", browser.WebSocketEndpoint);
+				}
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine(e.Message);
+				browser = await PuppeteerUtility.GetBrowser();
+			}
 
 			try
 			{
 				page = await browser.GetCurrentPage();
+				defaultViewport = page.Viewport;
 
-				await page.SetUserAgentAsync(
-				  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36 Edg/93.0.961.52");
+				await page.SetUserAgentAsync(defaultUserAgent);
+				
 
 				await LoginToMicrosoftAsync();
 
-				var rewards = await GetRewardsInfoAsync();
+				//var rewards = await GetRewardsInfoAsync();
+				var rewards = await GetRewardsPointsAsync();
 
 				Console.WriteLine(rewards);
 				Console.WriteLine($"{credentials.Username} - [BING]: Beginning searches.");
+
+				await GetCardsAsync();
 
 				await RunSearchesAsync((90 / 3) + 4); // 90 points max / 3 points per page
 
 				await SwitchToMobileAsync();
 				await RunSearchesAsync(60 / 3); // 60 points max / 3 points per page
 
-				var endRewards = await GetRewardsInfoAsync();
+				//var endRewards = await GetRewardsInfoAsync();
+				var endRewards = await GetRewardsPointsAsync();
 				Console.WriteLine(endRewards);
 
 				Console.WriteLine("DONE!");
@@ -73,8 +105,13 @@ namespace MicrosoftRewardsFarmer
 			}
 			finally
 			{
-				await browser.CloseAsync();
-				await browser.DisposeAsync();
+				if (!Program.KeepBrowserAlive)
+					//browser.Dispose();
+				//else
+				{
+					await browser.CloseAsync();
+					await browser.DisposeAsync();
+				}
 				farming = false;
 			}
 		}
@@ -99,24 +136,22 @@ namespace MicrosoftRewardsFarmer
 			await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
 			await page.TypeAsync("input[name = \"loginfmt\"]", credentials.Username);
 			await page.ClickAsync("input[id = \"idSIButton9\"]");
-			await page.WaitForTimeoutAsync(2000);
 
 			// Enter password, then wait 2 seconds for next card to load
 			if (credentials.Password != "")
 			{
 				await page.WaitForSelectorAsync("input[name = \"passwd\"]");
+				await page.WaitForTimeoutAsync(500); // Wait the animation to finish
 				await page.TypeAsync("input[name = \"passwd\"]", credentials.Password);
 				await page.ClickAsync("input[id = \"idSIButton9\"]");
-				await page.WaitForTimeoutAsync(2000);
 			}
 
 			// Don"t remind password, wait for next page to load.
-			await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]");
+			await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 0 });
 			await page.ClickAsync("input[id = \"idSIButton9\"]");
-			await page.WaitForTimeoutAsync(2000);
 		}
 
-		private async Task<uint> GetRewardsInfoAsync()
+		/*private async Task<uint> GetRewardsInfoAsync()
 		{
 			var url = "https://account.microsoft.com/rewards";
 
@@ -140,9 +175,93 @@ namespace MicrosoftRewardsFarmer
 					return element && element.innerText; // will return undefined if the element is not found
 				}");
 
-			Debug.WriteLine(rewards.Value.ToString().Replace(" ", ""));
+			//Debug.WriteLine(rewards.Value.ToString().Replace(" ", ""));
 
 			return Convert.ToUInt32(rewards.Value.ToString().Replace(" ", ""));
+		}*/
+
+		/*private async Task GoToBingAsync()
+		{
+			var url = "https://www.bing.com/search?q=";
+
+			await page.GoToAsync(url);
+
+			if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
+			{
+				await page.ClickAsync("input[id=\"id_a\"]");
+				await page.WaitForTimeoutAsync(2000);
+			}
+		}*/
+
+		private async Task<uint> GetRewardsPointsAsync()
+		{
+			if (!page.Url.StartsWith("https://www.bing.com/search"))
+				await RunSearchesAsync(1); // Go to Bing and connect
+			if (mobile)
+			{
+				await SwitchToDesktopAsync();
+				await page.ReloadAsync();
+			}
+
+			await page.WaitForSelectorAsync("span[id=\"id_rc\"]");
+			await page.WaitForTimeoutAsync(2000); // Let animation finish
+			var pointsJson = await page.EvaluateFunctionAsync<JValue>(@"() => {
+					const rewardsSel = `span[id=""id_rc""]`;
+					const element = document.querySelector( rewardsSel );
+					return element && element.innerText; // will return undefined if the element is not found
+				}");
+
+			Debug.WriteLine(pointsJson.Value.ToString().Replace(" ", ""));
+
+			return Convert.ToUInt32(pointsJson.Value.ToString().Replace(" ", ""));
+		}
+
+		private async Task GetCardsAsync()
+        {
+			var url = "https://account.microsoft.com/rewards";
+
+			await page.GoToAsync(url);
+
+			// If not logged
+			await page.WaitForTimeoutAsync(2000); // Let page load
+			if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
+			{
+				// Click on the connect to Rewards link
+				await page.ClickAsync("a[id=\"raf-signin-link-id\"]");
+
+				// Wait for next page to load.
+			}
+
+			//div class="c-card-content"
+
+			await page.WaitForTimeoutAsync(2000);
+
+			var cardsElement = await page.QuerySelectorAllAsync("div[class=\"points clearfix\"]"); // points clearfix //c-card-content
+
+			foreach (var cardElement in cardsElement)
+            {
+				if (await cardElement.IsIntersectingViewportAsync()) // IsIntersectingViewportAsync ? // IsVisible
+				{
+					await cardElement.ClickAsync();
+					var cardPage = await browser.WaitAndGetNewPage(); // Timeout ?
+					await cardPage.WaitTillHTMLRendered();
+					await ProceedCard(cardPage);
+					await page.BringToFrontAsync();
+				}
+			}
+		}
+
+		private async Task ProceedCard(Page cardPage)
+		{
+			// Wait quest pop off
+			//await page.WaitForTimeoutAsync(500);
+
+			// Poll quest
+			if (await cardPage.QuerySelectorAsync("div[id=\"btoption0\"]") != null)
+            {
+				// Click on the first option (I wonder why it's always the first option that is the most voted 🤔)
+				await cardPage.ClickAsync("div[id=\"btoption0\"]");
+			}
 		}
 
 
@@ -161,13 +280,11 @@ namespace MicrosoftRewardsFarmer
 			{
 				await page.GoToAsync(url + term);
 
-				await page.WaitForTimeoutAsync(2000);
-
-				// Connect to Bing, wait for next page to load.
+				// If not, connect to Bing, wait for next page to load.
 				if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
 				{
+					await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
 					await page.ClickAsync("input[id=\"id_a\"]");
-					await page.WaitForTimeoutAsync(2000);
 				}
 			}
 		}
@@ -186,6 +303,13 @@ namespace MicrosoftRewardsFarmer
 		{
 			var iPhone = Puppeteer.Devices[PuppeteerSharp.Mobile.DeviceDescriptorName.IPhone6];
 			await page.EmulateAsync(iPhone);
+			mobile = true;
+		}
+		private async Task SwitchToDesktopAsync()
+		{
+			await page.SetViewportAsync(defaultViewport);
+			await page.SetUserAgentAsync(defaultUserAgent);
+			mobile = false;
 		}
 
 		private void DisplayRedemptionOptions(uint points)
