@@ -141,7 +141,8 @@ namespace MicrosoftRewardsFarmer
 			if (credentials.Password != "")
 			{
 				await page.WaitForSelectorAsync("input[name = \"passwd\"]");
-				await page.WaitForTimeoutAsync(500); // Wait the animation to finish
+				//await page.WaitForTimeoutAsync(500); // Wait the animation to finish
+				await page.WaitTillHTMLRendered();
 				await page.TypeAsync("input[name = \"passwd\"]", credentials.Password);
 				await page.ClickAsync("input[id = \"idSIButton9\"]");
 			}
@@ -204,7 +205,8 @@ namespace MicrosoftRewardsFarmer
 			}
 
 			await page.WaitForSelectorAsync("span[id=\"id_rc\"]");
-			await page.WaitForTimeoutAsync(2000); // Let animation finish
+			await page.WaitTillHTMLRendered();
+			//await page.WaitForTimeoutAsync(2000); // Let animation finish // Need
 			var pointsJson = await page.EvaluateFunctionAsync<JValue>(@"() => {
 					const rewardsSel = `span[id=""id_rc""]`;
 					const element = document.querySelector( rewardsSel );
@@ -240,13 +242,16 @@ namespace MicrosoftRewardsFarmer
 
 			foreach (var cardElement in cardsElement)
             {
-				if (await cardElement.IsIntersectingViewportAsync()) // IsIntersectingViewportAsync ? // IsVisible
+				if (await cardElement.IsVisible(page)) // IsIntersectingViewportAsync = bad
 				{
 					await cardElement.ClickAsync();
-					var cardPage = await browser.WaitAndGetNewPage(); // Timeout ?
-					await cardPage.WaitTillHTMLRendered();
+					var cardPage = await browser.WaitAndGetNewPage();
+					await cardPage.WaitTillHTMLRendered(); // Timeout ?
 					await ProceedCard(cardPage);
-					await page.BringToFrontAsync();
+					if (cardPage.Url != page.Url)
+                    {
+						await cardPage.CloseAsync();
+					}
 				}
 			}
 		}
@@ -255,12 +260,35 @@ namespace MicrosoftRewardsFarmer
 		{
 			// Wait quest pop off
 			//await page.WaitForTimeoutAsync(500);
+			ElementHandle element;
 
-			// Poll quest
-			if (await cardPage.QuerySelectorAsync("div[id=\"btoption0\"]") != null)
-            {
+			// Poll quest (Don't support multi quest)
+			if ((element = await cardPage.QuerySelectorAsync("div[id=\"btoption0\"]")) != null) // click 
+			{
 				// Click on the first option (I wonder why it's always the first option that is the most voted 🤔)
-				await cardPage.ClickAsync("div[id=\"btoption0\"]");
+
+				await element.ClickAsync();
+				await page.WaitTillHTMLRendered();
+
+				// should do better
+				if ((element = await cardPage.QuerySelectorAsync("div[id=\"btoption0\"]")) != null) // click 
+				{
+					await element.ClickAsync();
+				}
+			}
+
+			// 50/50 // TODO: make it smart
+			if (await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]") != null)
+			{
+				await cardPage.ClickAsync("input[id=\"rqStartQuiz\"]");
+			}
+			while ((element = await cardPage.QuerySelectorAsync("div[id=\"rqAnswerOption0\"]")) != null) // click 
+			{
+				if (await element.IsIntersectingViewportAsync())
+				{
+					await element.ClickAsync();
+					await cardPage.WaitTillHTMLRendered();
+				}
 			}
 		}
 
@@ -279,12 +307,20 @@ namespace MicrosoftRewardsFarmer
 			foreach (var term in terms)
 			{
 				await page.GoToAsync(url + term);
+				await page.WaitTillHTMLRendered(); // Slower but saffer
 
 				// If not, connect to Bing, wait for next page to load.
 				if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
 				{
-					await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
+					//await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
 					await page.ClickAsync("input[id=\"id_a\"]");
+				}
+				// If cookies, eat it !
+				//bnp_btn_accept
+				if (await page.QuerySelectorAsync("button[id=\"bnp_btn_accept\"]") != null)
+				{
+					//await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
+					await page.ClickAsync("button[id=\"bnp_btn_accept\"]");
 				}
 			}
 		}

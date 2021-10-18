@@ -48,21 +48,27 @@ namespace MicrosoftRewardsFarmer
 
             while (checkCounts++ <= maxChecks)
             {
-                var html = await page.GetContentAsync();
-                var currentHTMLSize = html.Length;
-
-                if (lastHTMLSize != 0 && currentHTMLSize == lastHTMLSize)
-                    countStableSizeIterations++;
-                else
-                    countStableSizeIterations = 0; //reset the counter
-
-                if (countStableSizeIterations >= minStableSizeIterations)
+                try
                 {
-                    break;
-                }
+                    var html = await page.GetContentAsync();
+                    var currentHTMLSize = html.Length;
 
-                lastHTMLSize = currentHTMLSize;
-                await page.WaitForTimeoutAsync(checkDurationMsecs);
+                    if (lastHTMLSize != 0 && currentHTMLSize == lastHTMLSize)
+                        countStableSizeIterations++;
+                    else
+                        countStableSizeIterations = 0; //reset the counter
+
+                    if (countStableSizeIterations >= minStableSizeIterations)
+                    {
+                        break;
+                    }
+
+                    lastHTMLSize = currentHTMLSize;
+                    await page.WaitForTimeoutAsync(checkDurationMsecs);
+                } catch (EvaluationFailedException)
+                {
+                    continue; // Brute force
+                }
             }
         }
     }
