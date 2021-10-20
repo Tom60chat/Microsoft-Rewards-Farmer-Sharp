@@ -3,9 +3,9 @@ Allows you to farm Microsoft Rewards points by one click
 
 Work on Windows, linux, macOS
 
-## Dependencies:
+<!--## Dependencies:
 
- - [.NET Core 3.1 Runtime (Console apps)](https://dotnet.microsoft.com/download/dotnet/3.1/runtime)
+ - [.NET Core 3.1 Runtime (Console apps)](https://dotnet.microsoft.com/download/dotnet/3.1/runtime)-->
 
 ## Installation:
 
