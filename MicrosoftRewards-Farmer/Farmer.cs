@@ -277,18 +277,21 @@ namespace MicrosoftRewardsFarmer
 				}
 			}
 
-			// 50/50 // TODO: make it smart
+			// 50/50 & Quiz // TODO: make it smart
 			if (await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]") != null)
 			{
 				await cardPage.ClickAsync("input[id=\"rqStartQuiz\"]");
 			}
-			while ((element = await cardPage.QuerySelectorAsync("div[id=\"rqAnswerOption0\"]")) != null) // click 
+			while ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null) // click 
 			{
-				if (await element.IsIntersectingViewportAsync())
+				if (await element.IsVisible(cardPage))
 				{
 					await element.ClickAsync();
-					await cardPage.WaitTillHTMLRendered();
+					await cardPage.WaitTillHTMLRendered(5000);
+					await cardPage.WaitForTimeoutAsync(500);
 				}
+				else
+					break;
 			}
 		}
 
@@ -309,18 +312,18 @@ namespace MicrosoftRewardsFarmer
 				await page.GoToAsync(url + term);
 				await page.WaitTillHTMLRendered(); // Slower but saffer
 
-				// If not, connect to Bing, wait for next page to load.
-				if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
-				{
-					//await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
-					await page.ClickAsync("input[id=\"id_a\"]");
-				}
 				// If cookies, eat it !
 				//bnp_btn_accept
 				if (await page.QuerySelectorAsync("button[id=\"bnp_btn_accept\"]") != null)
 				{
 					//await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
 					await page.ClickAsync("button[id=\"bnp_btn_accept\"]");
+				}
+				// If not, connect to Bing, wait for next page to load.
+				if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
+				{
+					//await page.WaitForTimeoutAsync(500); // Wait for bing to finish loading properly
+					await page.ClickAsync("input[id=\"id_a\"]");
 				}
 			}
 		}

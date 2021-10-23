@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -31,13 +32,17 @@ namespace MicrosoftRewardsFarmer
         private static bool TryGetUserBrowser(out string browserPath)
         {
             browserPath = string.Empty;
-            var userBrowserPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"; // TODO: find installed user browsers
+            var userBrowserPaths = new string[] {
+                "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                "C:\\Users\\Tom60\\AppData\\Local\\Chromium\\Application\\chrome.exe"
+                };  // TODO: find installed user browsers
 
-            if (File.Exists(userBrowserPath))
-            {
-                browserPath = userBrowserPath;
-                return true;
-            }
+            foreach (var userBrowserPath in userBrowserPaths)
+                if (File.Exists(userBrowserPath))
+                {
+                    browserPath = userBrowserPath;
+                    return true;
+                }
 
             return false;
         }

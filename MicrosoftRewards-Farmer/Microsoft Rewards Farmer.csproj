@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>MicrosoftRewardsFarmer</RootNamespace>
     <AssemblyName>Microsoft Rewards Farmer</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <PackageProjectUrl>https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp</PackageProjectUrl>
     <Description>A .NET app to farm Microsoft Rewards points.</Description>
     <NeutralLanguage>en</NeutralLanguage>
