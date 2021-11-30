@@ -35,6 +35,12 @@ This should look like:
 
 Start `Microsoft Rewards Farmer.exe`
 
+## Legal Notice
+I am not responsible for what you do with this program, USE IT AT YOUR OWN RISK!
+This program is made for education, and I learned a lot about using puppetter 😋
+
+Using this application on Microsoft services may cause Microsoft to disqualify you; deactivate your access to the Program or to your Rewards account.
+Please read https://www.microsoft.com/en-us/servicesagreement/ in particular the Microsoft Rewards section.
 
 
 Licensed under WTFPL
