@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MicrosoftRewardsFarmer
@@ -62,6 +63,7 @@ namespace MicrosoftRewardsFarmer
 
 			try
 			{
+				// Init
 				page = await browser.GetCurrentPage();
 				defaultViewport = page.Viewport;
 
@@ -84,34 +86,38 @@ namespace MicrosoftRewardsFarmer
 			try
 			{	
 				await LoginToMicrosoftAsync();
+				
+				// Get points
+				var rewardPoints = await GetRewardsPointsAsync();
 
-				//var rewards = await GetRewardsInfoAsync();
-				var rewards = await GetRewardsPointsAsync();
+				ColoredConsole.WriteLine($"<$Green;{credentials.Username}> have {rewardPoints} points");
 
-				Console.WriteLine(rewards);
-				Console.WriteLine($"{credentials.Username} - [BING]: Beginning searches.");
+				// Resolve cards
+				ColoredConsole.WriteLine($"<$Green;{credentials.Username}> - [Rewards]: Beginning cards resolve.");
+				await ResolveCardsAsync();
 
-				await GetCardsAsync();
-
+				// Run seaches
+				ColoredConsole.WriteLine($"<$Green;{credentials.Username}> - [BING]: Beginning searches.");
 				await RunSearchesAsync((90 / 3) + 4); // 90 points max / 3 points per page
 
 				await SwitchToMobileAsync();
 				await RunSearchesAsync(60 / 3); // 60 points max / 3 points per page
 
-				//var endRewards = await GetRewardsInfoAsync();
-				var endRewards = await GetRewardsPointsAsync();
-				Console.WriteLine(endRewards);
+				// Get end points
+				var endRewardPoints = await GetRewardsPointsAsync();
 
 				Console.WriteLine("DONE!");
 				Console.WriteLine();
-				Console.WriteLine($"[~~Points Summary For {credentials.Username} ~~]");
+				ColoredConsole.WriteLine($"[~~Points Summary For <$Green;{credentials.Username}> ~~]");
+				ColoredConsole.WriteLine($"Total points: <$Green;{endRewardPoints}>");
+				ColoredConsole.WriteLine($"Total points gained: <$Green;{endRewardPoints - rewardPoints}>");
 
-				DisplayRedemptionOptions(endRewards);
+				DisplayRedemptionOptions(endRewardPoints);
 
 			}
 			catch (Exception e)
 			{
-				Debug.WriteLine(e); // Send full error to Visual Studio console
+				Debug.WriteLine(e); // Send full error to debugger console
 				Console.WriteLine($"{credentials.Username} - {e.Message}"); // Send error message to console
 			}
 			finally
@@ -141,11 +147,12 @@ namespace MicrosoftRewardsFarmer
 		{
 			var url = "https://login.live.com";
 
-			await page.GoToAsync(url);
+			await page.TryGoToAsync(url, WaitUntilNavigation.DOMContentLoaded);
 
 			// Enter Username, then wait 2 seconds for next card to load
 			await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
 			await page.TypeAsync("input[name = \"loginfmt\"]", credentials.Username);
+			await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 			await page.ClickAsync("input[id = \"idSIButton9\"]");
 
 			// Enter password, then wait 2 seconds for next card to load
@@ -155,6 +162,7 @@ namespace MicrosoftRewardsFarmer
 				//await page.WaitForTimeoutAsync(500); // Wait the animation to finish
 				await page.WaitTillHTMLRendered();
 				await page.TypeAsync("input[name = \"passwd\"]", credentials.Password);
+				await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 				await page.ClickAsync("input[id = \"idSIButton9\"]");
 			}
 
@@ -170,31 +178,29 @@ namespace MicrosoftRewardsFarmer
 			if (mobile)
 			{
 				await SwitchToDesktopAsync();
-				await page.ReloadAsync();
+				await page.ReloadAsync(null, new WaitUntilNavigation[] { WaitUntilNavigation.Networkidle0 });
 			}
 
 			await page.WaitForSelectorAsync("span[id=\"id_rc\"]");
 			await page.WaitTillHTMLRendered();
-			//await page.WaitForTimeoutAsync(2000); // Let animation finish // Need
+			//await page.WaitForTimeoutAsync(500); // Let animation finish // Need
 			var pointsJson = await page.EvaluateFunctionAsync<JValue>(@"() => {
 					const rewardsSel = `span[id=""id_rc""]`;
 					const element = document.querySelector( rewardsSel );
 					return element && element.innerText; // will return undefined if the element is not found
-				}");
+				}"); // Doesn't allways return points
 
-			Debug.WriteLine(pointsJson.Value.ToString().Replace(" ", ""));
-
-			return Convert.ToUInt32(pointsJson.Value.ToString().Replace(" ", ""));
+			return uint.TryParse(pointsJson.Value.ToString().Replace(" ", ""), out var points) ? points : 0;
 		}
 
 		protected async Task GetCardsAsync()
         {
 			var url = "https://account.microsoft.com/rewards";
 
-			await page.GoToAsync(url);
+			await page.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
 
 			// If not logged
-			await page.WaitForTimeoutAsync(2000); // Let page load
+			//await page.WaitForTimeoutAsync(2000); // Let page load
 			if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
 			{
 				// Click on the connect to Rewards link
@@ -213,9 +219,15 @@ namespace MicrosoftRewardsFarmer
             {
 				if (await cardElement.IsVisible(page)) // IsIntersectingViewportAsync = bad
 				{
+					/*Semaphore semaphore = new Semaphore(0, 1);
+					browser.WaitNewPage(semaphore); // Fix ??*/
+
+					var pages = await browser.PagesAsync();
 					await cardElement.ClickAsync();
-					var cardPage = await browser.WaitAndGetNewPage();
-					await cardPage.WaitTillHTMLRendered(); // Timeout ?
+					var cardPage = await browser.WaitAndGetNewPage(pages); // cahneg
+
+					//var cardPage = await browser.GetCurrentPage();
+					await cardPage.WaitTillHTMLRendered();
 					await ProceedCard(cardPage);
 					if (cardPage.Url != page.Url)
                     {
@@ -228,7 +240,7 @@ namespace MicrosoftRewardsFarmer
 		protected async Task ProceedCard(Page cardPage)
 		{
 			// Wait quest pop off
-			//await page.WaitForTimeoutAsync(500);
+			await page.WaitForTimeoutAsync(500);
 			ElementHandle element;
 
 			// Poll quest (Don't support multi quest)
