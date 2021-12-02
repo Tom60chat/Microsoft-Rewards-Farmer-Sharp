@@ -82,7 +82,7 @@ namespace MicrosoftRewardsFarmer
         /// ColoredConsole.WriteLigne($"<$Blue;this text is blue> and this one is <$Orange;orange!>");
         /// </example>
         /// <param name="msg">Messeage to write</param>
-        public static void WriteLigne(string msg)
+        public static void WriteLine(string msg)
         {
             Write(msg);
             Console.WriteLine();
