@@ -22,22 +22,29 @@ namespace MicrosoftRewardsFarmer
 		static IExitSignal exitSignal;
 #endregion
 
-#region Properties
+		#region Properties
 		public static Settings Settings { get; private set; }
-#endregion
+		#endregion
 
-#region Methods
+		#region Methods
 		static void Main(string[] args)
 		{
 			Settings = GetSettings();
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
+#if DEBUG
+			//Test();
+			MultiTest();
+			//StartFarming();
+#else
 			StartFarming();
-
+#endif
 
 			Console.WriteLine("Every accounts has finish!");
 			Console.WriteLine("Press any key to close");
+#if !DEBUG
 			Console.ReadKey();
+#endif
 		}
 
         private static void StartFarming()
@@ -50,6 +57,45 @@ namespace MicrosoftRewardsFarmer
 			}
 
 			Task.WaitAll(tasks.ToArray());
+		}
+
+		private static async void Test()
+		{
+			var credential = Settings.Accounts[0];
+
+			var farmerTest = new FarmerTest(credential);
+
+			var stopWatch = new Stopwatch();
+
+			stopWatch.Start();
+
+			//farmerTest.TestDisplayRedemptionOptions();
+			//await farmerTest.SwitchTest();
+
+			stopWatch.Stop();
+
+			var time = new DateTime(stopWatch.ElapsedTicks);
+			Console.WriteLine("Test time: " + time.ToString("HH:mm:ss.fff"));
+		}
+
+		private static void MultiTest()
+		{
+			var credential = Settings.Accounts[0];
+			int n = 2;
+			var tasks = new Task[n];
+			Task task;
+
+			for (int i = 0; i < n; i++)
+			{
+				var farmerTest = new FarmerTest(credential);
+
+				task = Task.Run(async () =>
+					await farmerTest.RunSearchesTest()
+				);
+				tasks[i] = task;
+			}
+
+			Task.WaitAll(tasks);
 		}
 
 		private static void SetExitSignal()

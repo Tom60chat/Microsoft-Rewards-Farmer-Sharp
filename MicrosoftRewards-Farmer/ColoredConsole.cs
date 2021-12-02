@@ -1,23 +1,13 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 
 namespace MicrosoftRewardsFarmer
 {
     public static class ColoredConsole
     {
-        //https://stackoverflow.com/a/54123238
-        /*public static void Write(string msg)
-        {
-            string[] ss = msg.Split('{', '}');
-            ConsoleColor c;
-            foreach (var s in ss)
-                if (s.StartsWith("/"))
-                    Console.ResetColor();
-                else if (s.StartsWith("=") && Enum.TryParse(s.Substring(1), out c))
-                    Console.ForegroundColor = c;
-                else
-                    Console.Write(s);
-        }*/
+        // https://stackoverflow.com/a/1522972
+        private static readonly object ColoredConsoleLock = new object();
 
         /// <summary>
         /// Parse text en write into the app console.
@@ -28,51 +18,54 @@ namespace MicrosoftRewardsFarmer
         /// <param name="msg">Messeage to write</param>
         public static void Write(string msg)
         {
-            int ch;
-
-            using (StringReader reader = new StringReader(msg))
+            lock (ColoredConsoleLock)
             {
-                while ((ch = reader.Read()) > 0)
+                int ch;
+
+                using (StringReader reader = new StringReader(msg))
                 {
-                    // < ()
-                    if (ch == '<')
+                    while ((ch = reader.Read()) > 0)
                     {
-                        // <$ ()
-                        if (reader.Read() == '$')
+                        // < ()
+                        if (ch == '<')
                         {
-                            StringWriter color = new StringWriter();
-
-                            while ((ch = reader.Read()) > 0)
+                            // <$ ()
+                            if (reader.Read() == '$')
                             {
-                                if (ch == ';')
-                                    break;
+                                StringWriter color = new StringWriter();
 
-                                color.Write((char)ch);
+                                while ((ch = reader.Read()) > 0)
+                                {
+                                    if (ch == ';')
+                                        break;
+
+                                    color.Write((char)ch);
+                                }
+
+                                // <$Color, ()
+
+                                if (Enum.TryParse(color.ToString(), out ConsoleColor clr))
+                                    Console.ForegroundColor = clr;
+
+                                while ((ch = reader.Read()) > 0)
+                                {
+                                    if (ch == '>')
+                                        break;
+                                    Console.Write((char)ch);
+                                }
+
+                                // <$Color, message> (message)
+
+                                Console.ResetColor();
                             }
-
-                            // <$Color, ()
-
-                            if (Enum.TryParse(color.ToString(), out ConsoleColor clr))
-                                Console.ForegroundColor = clr;
-
-                            while ((ch = reader.Read()) > 0)
-                            {
-                                if (ch == '>')
-                                    break;
-                                Console.Write((char)ch);
-                            }
-
-                            // <$Color, message> (message)
-
-                            Console.ResetColor();
+                        }
+                        else
+                        {
+                            Console.Write((char)ch);
                         }
                     }
-                    else
-                    {
-                        Console.Write((char)ch);
-                    }
-                }
-            };
+                };
+            }
         }
 
         /// <summary>
@@ -82,10 +75,13 @@ namespace MicrosoftRewardsFarmer
         /// ColoredConsole.WriteLigne($"<$Blue;this text is blue> and this one is <$Orange;orange!>");
         /// </example>
         /// <param name="msg">Messeage to write</param>
-        public static void WriteLigne(string msg)
+        public static void WriteLine(string msg)
         {
-            Write(msg);
-            Console.WriteLine();
+            lock (ColoredConsoleLock)
+            {
+                Write(msg);
+                Console.WriteLine();
+            }
         }
     }
 }

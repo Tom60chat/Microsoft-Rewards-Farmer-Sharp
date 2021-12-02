@@ -35,12 +35,8 @@ namespace MicrosoftRewardsFarmer
 		#endregion
 
 		#region Methods
-		public async Task FarmPoints()
+		protected async Task Init()
 		{
-			if (farming) return;
-
-			farming = true;
-
 			try
 			{
 				if (Program.KeepBrowserAlive && File.Exists("lastBrowserWS.txt"))
@@ -70,8 +66,23 @@ namespace MicrosoftRewardsFarmer
 				defaultViewport = page.Viewport;
 
 				await page.SetUserAgentAsync(defaultUserAgent);
-				
+			}
+			catch (Exception e)
+            {
+				Console.WriteLine(e.Message);
+            }
+		}
 
+		public async Task FarmPoints()
+		{
+			if (farming) return;
+
+			farming = true;
+
+			await Init();
+
+			try
+			{	
 				await LoginToMicrosoftAsync();
 
 				//var rewards = await GetRewardsInfoAsync();
@@ -118,7 +129,7 @@ namespace MicrosoftRewardsFarmer
 
 		public async Task StopAsync()
 		{
-			if (farming && browser != null)
+			if (browser != null)
 			{
 				farming = false;
 				await browser.CloseAsync();
@@ -126,7 +137,7 @@ namespace MicrosoftRewardsFarmer
 			}
 		}
 
-		private async Task LoginToMicrosoftAsync()
+		protected async Task LoginToMicrosoftAsync()
 		{
 			var url = "https://login.live.com";
 
@@ -152,49 +163,7 @@ namespace MicrosoftRewardsFarmer
 			await page.ClickAsync("input[id = \"idSIButton9\"]");
 		}
 
-		/*private async Task<uint> GetRewardsInfoAsync()
-		{
-			var url = "https://account.microsoft.com/rewards";
-
-			await page.GoToAsync(url);
-
-			// If not logged
-			if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
-			{
-				// Click on the connect to Rewards link
-				await page.ClickAsync("a[id=\"raf-signin-link-id\"]");
-
-				// Wait for next page to load.
-				await page.WaitForTimeoutAsync(2000);
-			}
-
-			await page.WaitForTimeoutAsync(2000); // Let animation finish
-
-			var rewards = await page.EvaluateFunctionAsync<JValue>(@"() => {
-					const rewardsSel = `#userBanner > mee-banner > div > div > div > div.info-columns > div:nth-child(1) > mee-banner-slot-2 > mee-rewards-user-status-item > mee-rewards-user-status-balance > div > div > div > div > div > p.bold.number.margin-top-1 > mee-rewards-counter-animation > span`;
-					const element = document.querySelector( rewardsSel );
-					return element && element.innerText; // will return undefined if the element is not found
-				}");
-
-			//Debug.WriteLine(rewards.Value.ToString().Replace(" ", ""));
-
-			return Convert.ToUInt32(rewards.Value.ToString().Replace(" ", ""));
-		}*/
-
-		/*private async Task GoToBingAsync()
-		{
-			var url = "https://www.bing.com/search?q=";
-
-			await page.GoToAsync(url);
-
-			if (await page.QuerySelectorAsync("input[id=\"id_a\"]") != null)
-			{
-				await page.ClickAsync("input[id=\"id_a\"]");
-				await page.WaitForTimeoutAsync(2000);
-			}
-		}*/
-
-		private async Task<uint> GetRewardsPointsAsync()
+		protected async Task<uint> GetRewardsPointsAsync()
 		{
 			if (!page.Url.StartsWith("https://www.bing.com/search"))
 				await RunSearchesAsync(1); // Go to Bing and connect
@@ -218,7 +187,7 @@ namespace MicrosoftRewardsFarmer
 			return Convert.ToUInt32(pointsJson.Value.ToString().Replace(" ", ""));
 		}
 
-		private async Task GetCardsAsync()
+		protected async Task GetCardsAsync()
         {
 			var url = "https://account.microsoft.com/rewards";
 
@@ -256,7 +225,7 @@ namespace MicrosoftRewardsFarmer
 			}
 		}
 
-		private async Task ProceedCard(Page cardPage)
+		protected async Task ProceedCard(Page cardPage)
 		{
 			// Wait quest pop off
 			//await page.WaitForTimeoutAsync(500);
@@ -296,21 +265,23 @@ namespace MicrosoftRewardsFarmer
 		}
 
 
-		private async Task RunSearchesAsync(byte numOfSearches = 20)
+		protected async Task RunSearchesAsync(byte numOfSearches = 20)
 		{
 			var url = "https://www.bing.com/search?q=";
-
 			var terms = GetSearchTerms(numOfSearches);
+			var sb = new StringBuilder();
 
-			Console.Write("[");
+			sb.Append("[");
 			foreach (var term in terms)
-				ColoredConsole.Write($"<$Green;{term}>,");
-			Console.WriteLine("]");
+				sb.Append
+					($"<$Green;{term}>,");
+			sb.AppendLine("]");
+			ColoredConsole.Write(sb.ToString());
 
 			foreach (var term in terms)
 			{
-				await page.GoToAsync(url + term);
-				await page.WaitTillHTMLRendered(); // Slower but saffer
+				await page.GoToAsync(url + term, WaitUntilNavigation.Networkidle0);
+				//await page.WaitTillHTMLRendered(); // Slower but saffer
 
 				// If cookies, eat it !
 				//bnp_btn_accept
@@ -328,41 +299,57 @@ namespace MicrosoftRewardsFarmer
 			}
 		}
 
-		private string[] GetSearchTerms(byte num = 20)
+		protected string[] GetSearchTerms(byte num = 20)
 		{
-			var url = $"https://random-word-api.herokuapp.com/word?swear=0&number={num}";
+			
+			/*var url = $"https://random-word-api.herokuapp.com/word?swear=0&number={num}";
 
 			var jsonTerms = new WebClient().DownloadString(url);
 			var array = JArray.Parse(jsonTerms);
 			
-			return array.Values<string>().ToArray();
+			return array.Values<string>().ToArray();*/
+
+			// Less hummain, but use less data to use
+			for (int i = 0; i < num; i++)
+			{
+				var sb = new StringBuilder();
+				var rand = new Random();
+
+				for (int j = 0; j < rand.Next(3, 12); j++)
+					rand.Next('A', 'z');
+			}
+			
 		}
 
-		private async Task SwitchToMobileAsync()
+		protected async Task SwitchToMobileAsync()
 		{
 			var iPhone = Puppeteer.Devices[PuppeteerSharp.Mobile.DeviceDescriptorName.IPhone6];
 			await page.EmulateAsync(iPhone);
 			mobile = true;
 		}
-		private async Task SwitchToDesktopAsync()
+
+		protected async Task SwitchToDesktopAsync()
 		{
 			await page.SetViewportAsync(defaultViewport);
 			await page.SetUserAgentAsync(defaultUserAgent);
 			mobile = false;
 		}
 
-		private void DisplayRedemptionOptions(uint points)
+		protected void DisplayRedemptionOptions(uint points)
 		{
+			StringBuilder sb = new StringBuilder();
 
-			ColoredConsole.WriteLigne($"Your point value of <$Green;{points}> is roughly equal to:");
-			Console.WriteLine();
+			sb.AppendLine($"Your point value of <$Green;{points}> is roughly equal to:");
+			sb.AppendLine();
 
 			foreach (var reward in Program.Settings.Rewards)
 			{
-				ColoredConsole.WriteLigne($"\t<$Blue;{points * 100 / reward.Cost}%> of <$White;{reward.Title}> (<$Green;{reward.Cost}> pts)");
-				ColoredConsole.WriteLigne($"\tor <$Blue;{points * 100 / reward.Discounted}%> of <$Green;{reward.Discounted}> pts at the discounted Level 2 rate");
-				Console.WriteLine();
+				sb.AppendLine($"\t<$Blue;{points * 100 / reward.Cost}%> of <$White;{reward.Title}> (<$Green;{reward.Cost}> pts)");
+				sb.AppendLine($"\tor <$Blue;{points * 100 / reward.Discounted}%> of <$Green;{reward.Discounted}> pts at the discounted Level 2 rate");
+				sb.AppendLine();
 			}
+
+			ColoredConsole.WriteLine(sb.ToString());
 		}
 		#endregion
 	}
