@@ -1,4 +1,6 @@
 ﻿using PuppeteerSharp;
+using PuppeteerSharp.Input;
+using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,46 +15,38 @@ namespace MicrosoftRewardsFarmer
             return pages[0]; // TODO: Find current page
         }
 
-        public static async Task<Page> WaitAndGetNewPage(this Browser browser, Page[] pages = null)
+        public static Task<Task<Page>> PromiseNewPage(this Browser browser, int timeout = 30000)
         {
-            if (pages == null)
-                pages = await browser.PagesAsync();
-            Page[] newPages;
-            int pagesCount = pages.Length;
-
-            while ((newPages = await browser.PagesAsync()).Length == pagesCount) { }
-
-            // https://stackoverflow.com/a/12795900
-            var diff = newPages.Except(pages).ToList();
-            return diff.FirstOrDefault();
+            var tokenSource = new CancellationTokenSource();
+            tokenSource.CancelAfter(timeout);
+            return PromiseNewPage(browser, tokenSource.Token);
         }
 
-        public static async Task WaitNewPage(this Browser browser, Semaphore semaphore)
+        public static Task<Task<Page>> PromiseNewPage(this Browser browser, CancellationToken token)
         {
-            //semaphore = new Semaphore(0, 1);
-            var pages = await browser.PagesAsync();
-            int count = pages.Length;
+            return Task.Factory.StartNew(async () =>
+            {
+                var pages = await browser.PagesAsync();
+                Page[] newPages = pages;
+                int pagesCount = pages.Length;
 
-            while ((await browser.PagesAsync()).Length == count) { }
+                while (
+                    !token.IsCancellationRequested &&
+                    (newPages = await browser.PagesAsync()).Length == pagesCount)
+                { }
 
-            semaphore.Release();
-        }
+                if (token.IsCancellationRequested)
+                    return null;
 
-        public static async Task<Page> WaitAndGetNewPage(this Browser browser, Page currentPage)
-        {
-            Page newPage;
-
-            while ((newPage = await browser.GetCurrentPage()).Equals(currentPage)) { }
-
-            return newPage;
+                var diff = newPages.Except(pages).ToList();
+                return diff.FirstOrDefault();
+            });
         }
 
         // https://github.com/puppeteer/puppeteer/issues/4356#issuecomment-487330171
         public static async Task<bool> IsVisible(this ElementHandle elementHandle, Page page) => await page.EvaluateFunctionAsync<bool>(@"(el) => {
                 if (!el || el.offsetParent === null)
-                {
                     return false;
-                }
 
                 const style = window.getComputedStyle(el);
                 return style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
@@ -94,23 +88,131 @@ namespace MicrosoftRewardsFarmer
             }
         }
 
-        public static async Task<bool> TryGoToAsync(this Page page, string url, NavigationOptions options)
+        /// <summary>
+        /// Try navigates to an url and promise that the navigation work.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="url">URL to navigate page to. The url should include scheme, e.g. https://.</param>
+        /// <param name="options">Navigation parameters.</param>
+        /// <param name="maxTry">Number of time to retry when navigation fail</param>
+        /// <returns>If navigation success</returns>
+        public static async Task<bool> TryGoToAsync(this Page page, string url, NavigationOptions options, int maxTry = 10)
         {
-            while (!(await page.GoToAsync(url, options)).Ok) { }
+            int trys = 0;
+            bool ok = false;
+
+            if (page == null || string.IsNullOrEmpty(url))
+                return false;
+
+            while (!ok)
+            {
+                if (maxTry < trys)
+                    return false;
+
+                try
+                {
+                    ok = (await page.GoToAsync(url, options)).Ok;
+                }
+                catch { }
+                finally
+                {
+                    trys++;
+                }
+            }
 
             return true;
         }
 
-        public static async Task<bool> TryGoToAsync(this Page page, string url, int? timeout = null, WaitUntilNavigation[] waitUntil = null) => await page.TryGoToAsync(url, new NavigationOptions()
-        {
-            Timeout = timeout,
-            WaitUntil = waitUntil
-        });
+        /// <summary>
+        /// Try navigates to an url and promise that the navigation work.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="url">URL to navigate page to. The url should include scheme, e.g. https://.</param>
+        /// <param name="timeout">Maximum navigation time in milliseconds, defaults to 30 seconds, pass 0 to disable timeout.</param>
+        /// <param name="waitUntil">
+        ///     When to consider navigation succeeded, defaults to PuppeteerSharp.WaitUntilNavigation.Load.
+        ///     Given an array of PuppeteerSharp.WaitUntilNavigation, navigation is considered
+        ///     to be successful after all events have been fired</param>
+        /// <returns>If navigation success</returns>
+        public static async Task<bool> TryGoToAsync(this Page page, string url, int? timeout = null, WaitUntilNavigation[] waitUntil = null) => await page.TryGoToAsync(
+            url,
+            new NavigationOptions()
+            {
+                Timeout = timeout,
+                WaitUntil = waitUntil
+            },
+            1);
 
 
-        public static async Task<bool> TryGoToAsync(this Page page, string url, WaitUntilNavigation waitUntil) => await page.TryGoToAsync(url, new NavigationOptions()
+        /// <summary>
+        /// Try navigates to an url and promise that the navigation work.
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="url">URL to navigate page to. The url should include scheme, e.g. https://.</param>
+        /// <param name="waitUntil">When to consider navigation succeeded.</param>
+        /// <param name="maxTry">Number of time to retry when navigation fail</param>
+        /// <returns>If navigation success</returns>
+        public static async Task<bool> TryGoToAsync(this Page page, string url, WaitUntilNavigation waitUntil, int maxTry = 10) => await page.TryGoToAsync(
+            url,
+            new NavigationOptions()
+            {
+                WaitUntil = new WaitUntilNavigation[] { waitUntil }
+            },
+            maxTry);
+
+        /// <summary>
+        /// Clear the text annd sends a keydown, keypress/input, and keyup event for each character in the text.
+        /// </summary>
+        /// <param name="selector">
+        /// A selector to search for element to focus. If there are multiple elements satisfying the selector,
+        /// the first will be focused.
+        /// </param>
+        /// <param name="text">A text to type into a focused element</param>
+        /// <param name="options">type options</param>
+        /// <returns>Task</returns>
+        public static async Task ReplaceAllTextAsync(this Page page, string selector, string text, TypeOptions options = null)
         {
-            WaitUntil = new WaitUntilNavigation[] { waitUntil }
-        });
+            await page.FocusAsync(selector);
+            await page.Keyboard.DownAsync("Control");
+            await page.Keyboard.PressAsync("A");
+            await page.Keyboard.UpAsync("Control");
+            await page.Keyboard.PressAsync("Backspace");
+            await page.Keyboard.TypeAsync(text, options);
+        }
+
+        /// <summary>
+        /// Waits for a selector to hide
+        /// </summary>
+        /// <param name="selector">A selector of an element to wait for</param>
+        /// <param name="timeout">The time span to wait before canceling the wait</param> 
+        /// <returns>Task</returns>
+        public static async Task WaitForSelectorToHideAsync(this Page page, string selector, int timeout = 30000)
+        {
+            var tokenSource = new CancellationTokenSource();
+            tokenSource.CancelAfter(timeout);
+            await WaitForSelectorToHideAsync(page, selector, tokenSource.Token);
+        }
+
+        /// <summary>
+        /// Waits for a selector to hide
+        /// </summary>
+        /// <param name="selector">A selector of an element to wait for</param>
+        /// <returns>Task</returns>
+        public static async Task WaitForSelectorToHideAsync(this Page page, string selector, CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await page.WaitForSelectorAsync(selector, new WaitForSelectorOptions()
+                    {
+                        Timeout = 500,
+                        Hidden = true
+                    });
+                    break;
+                }
+                catch (PuppeteerException) { }
+            };
+        }
     }
 }

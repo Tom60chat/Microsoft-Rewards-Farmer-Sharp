@@ -33,9 +33,11 @@ namespace MicrosoftRewardsFarmer
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
 #if DEBUG
-			//Test();
-			MultiTest();
+			//Test().GetAwaiter().GetResult();
+			//MultiTest();
 			//StartFarming();
+			//SlowFarm();
+			StartFarming();
 #else
 			StartFarming();
 #endif
@@ -47,19 +49,34 @@ namespace MicrosoftRewardsFarmer
 #endif
 		}
 
+		private static void SlowFarm()
+		{
+			int i = 0;
+
+			foreach (var credentials in Settings.Accounts)
+			{
+				var farmer = new Farmer(credentials);
+				farmer.FarmPoints(i).GetAwaiter().GetResult();
+				i++;
+			}
+		}
+
         private static void StartFarming()
 		{
+			int i = 0;
+
 			foreach (var credentials in Settings.Accounts)
 			{
 				var farmer = new Farmer(credentials);
 				farmers.Add(farmer);
-				tasks.Add(farmer.FarmPoints());
+				tasks.Add(farmer.FarmPoints(i));
+				i++;
 			}
 
 			Task.WaitAll(tasks.ToArray());
 		}
 
-		private static async void Test()
+		private static async Task Test()
 		{
 			var credential = Settings.Accounts[0];
 
@@ -71,6 +88,10 @@ namespace MicrosoftRewardsFarmer
 
 			//farmerTest.TestDisplayRedemptionOptions();
 			//await farmerTest.SwitchTest();
+			//await farmerTest.TestLogin();
+			await farmerTest.TestProceedCard();
+			//await farmerTest.TestGetRewardsPoints();
+			//await farmerTest.TestGetCards();
 
 			stopWatch.Stop();
 
@@ -90,7 +111,8 @@ namespace MicrosoftRewardsFarmer
 				var farmerTest = new FarmerTest(credential);
 
 				task = Task.Run(async () =>
-					await farmerTest.RunSearchesTest()
+					//await farmerTest.RunSearchesTest()
+					await farmerTest.TestGoTo()
 				);
 				tasks[i] = task;
 			}

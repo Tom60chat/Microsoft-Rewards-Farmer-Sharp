@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
-    <PackageReference Include="PuppeteerSharp" Version="5.1.0" />
+    <PackageReference Include="PuppeteerSharp" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -19,7 +19,7 @@ namespace MicrosoftRewardsFarmer
             else
                 await new BrowserFetcher().DownloadAsync();
 
-            return await Puppeteer.LaunchAsync(new LaunchOptions
+            var br = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 ExecutablePath = executablePath,
                 Args = new string[] {
@@ -27,6 +27,7 @@ namespace MicrosoftRewardsFarmer
                   },
                 Headless = false,
             });
+            return br;
         }
 
         private static bool TryGetUserBrowser(out string browserPath)
