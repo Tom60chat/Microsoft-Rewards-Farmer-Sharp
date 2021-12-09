@@ -204,6 +204,15 @@ namespace MicrosoftRewardsFarmer
             {
                 try
                 {
+                    if (await page.QuerySelectorAsync(selector) != null)
+                        await Task.Delay(500);
+                    else
+                        break;
+                }
+                catch (PuppeteerException) { break; }
+
+                /*try
+                {
                     await page.WaitForSelectorAsync(selector, new WaitForSelectorOptions()
                     {
                         Timeout = 500,
@@ -211,7 +220,7 @@ namespace MicrosoftRewardsFarmer
                     });
                     break;
                 }
-                catch (PuppeteerException) { }
+                catch (PuppeteerException) { }*/
             };
         }
     }

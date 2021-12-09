@@ -28,7 +28,6 @@ namespace MicrosoftRewardsFarmer
 
 		#region Variables
 		int consoleTop;
-		//int consoleLeft;
 		const string defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36 Edg/93.0.961.52";
 		ViewPortOptions defaultViewport;
 		bool mobile = false;
@@ -38,13 +37,14 @@ namespace MicrosoftRewardsFarmer
 		bool farming;
 		bool connected;
 		uint userPoints;
+		byte progress;
+		const byte totalProgress = 6;
 		#endregion
 
 		#region Methods
 		protected async Task Init(int consoleTop = 0)
 		{
 			this.consoleTop = consoleTop;
-			Debug.WriteLine(consoleTop);
 			browser = await PuppeteerUtility.GetBrowser();
 
 			// Gived up idea
@@ -83,12 +83,6 @@ namespace MicrosoftRewardsFarmer
 			{
 				WriteStatus("[Exception] Init: " + e.Message);
 			}
-
-			/*consoleLeft = DynamicConsole.CustomAction(
-				() => ColoredConsole.Write($"<$Green;{credentials.Username}> - "),
-				consoleTop,
-				0
-				);*/
 		}
 
 		public async Task FarmPoints(int consoleTop)
@@ -99,55 +93,45 @@ namespace MicrosoftRewardsFarmer
 
 			await Init(consoleTop);
 
+#if !DEBUG
 			try
-			{	
+			{
+#endif
+				// LogIn
 				await LoginToMicrosoftAsync();
+				progress++;
 
-				// Get points
+				// Get account points
 				userPoints = await GetRewardsPointsAsync();
-
-				/*consoleLeft = DynamicConsole.CustomAction(
-					() => ColoredConsole.Write($"<$Blue;{rewardPoints} points> - "),
-					consoleTop,
-					consoleLeft
-					);*/
-
-				//ColoredConsole.WriteLine($"<$Green;{credentials.Username}> have {rewardPoints} points");
+				progress++;
 
 				// Resolve cards
-				//ColoredConsole.WriteLine($"<$Green;{credentials.Username}> - [Rewards]: Beginning cards resolve.");
 				await GetCardsAsync();
+				progress++;
 
 				// Run seaches
-				//ColoredConsole.WriteLine($"<$Green;{credentials.Username}> - [BING]: Beginning searches.");
 				await RunSearchesAsync((90 / 3) + 4); // 90 points max / 3 points per page
+				progress++;
 
 				await SwitchToMobileAsync();
 				await RunSearchesAsync(60 / 3); // 60 points max / 3 points per page
+				progress++;
 
 				// Get end points
 				var endRewardPoints = await GetRewardsPointsAsync();
+				progress++;
 
-				WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow; Total: {endRewardPoints}>");
-
-				/*Console.WriteLine("DONE!");
-				Console.WriteLine();
-				ColoredConsole.WriteLine($"[~~Points Summary For <$Green;{credentials.Username}> ~~]");
-				ColoredConsole.WriteLine($"Total points: <$Green;{endRewardPoints}>");
-				ColoredConsole.WriteLine($"Total points gained: <$Green;{endRewardPoints - rewardPoints}>");
-
-				DisplayRedemptionOptions(endRewardPoints);*/
-
+				WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
+#if !DEBUG
 			}
 			catch (Exception e)
 			{
 				Debug.WriteLine(e); // Send full error to debugger console
-				//Console.WriteLine($"{credentials.Username} - {e.Message}: "); // Send error message to console
-
 				WriteStatus("[Exception] FarmPoints: " + e.Message);
 			}
 			finally
 			{
+#endif
 				if (!Program.KeepBrowserAlive)
 					//browser.Dispose();
 				//else
@@ -156,7 +140,9 @@ namespace MicrosoftRewardsFarmer
 					await browser.DisposeAsync();
 				}
 				farming = false;
+#if !DEBUG
 			}
+#endif
 		}
 
 		public async Task StopAsync()
@@ -259,13 +245,17 @@ namespace MicrosoftRewardsFarmer
 
 			var url = "https://account.microsoft.com/rewards";
 
-			await page.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
-
-			// If not logged
-			if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
+			while (!page.Url.StartsWith("https://rewards.microsoft.com/?refref=amc")) // Network issue, you know
 			{
-				// Click on the "Connect to Rewards" link
-				await page.ClickAsync("a[id=\"raf-signin-link-id\"]");
+				await page.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
+
+				// If not logged
+				if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
+				{
+					// Click on the "Connect to Rewards" link
+					await page.ClickAsync("a[id=\"raf-signin-link-id\"]");
+					await page.WaitForSelectorToHideAsync("a[id=\"raf-signin-link-id\"]");
+				}
 			}
 
 			await page.WaitForSelectorAsync("div[class=\"points clearfix\"]");
@@ -281,7 +271,11 @@ namespace MicrosoftRewardsFarmer
 				{
 					var promise = browser.PromiseNewPage();
 
-					await cardElement.ClickAsync();
+					try
+					{
+						await cardElement.ClickAsync();
+					}
+					catch (PuppeteerException) { continue; } // Not a HTMLElement
 
 					var cardPage = promise.Result.Result; // This is stupid
 					if (cardPage == null)
@@ -413,7 +407,7 @@ namespace MicrosoftRewardsFarmer
 				i++;
 
 				WriteStatus($"Running searches {i}/{numOfSearches}");
-				await page.TryGoToAsync(url + term, WaitUntilNavigation.Load);
+				await page.TryGoToAsync(url + term, WaitUntilNavigation.Networkidle0);
 				await CheckBingReady(page);
 			}
 		}
@@ -517,8 +511,11 @@ namespace MicrosoftRewardsFarmer
 			if (connected && element != null)
 			{
 				await element.ClickAsync();
-				//await page.WaitForSelectorToHideAsync("input[id=\"id_a\"]"); // may not needed ?
+				await page.WaitForSelectorToHideAsync("input[id=\"id_a\"]"); // may not needed ? may needed
 			}
+
+			if (page.Url.StartsWith("https://account.live.com/proofs/Verify")) // Oh poop
+				throw new Exception("This account must be verified.");
 		}
 
 		private void WriteStatus(string status)
@@ -526,7 +523,7 @@ namespace MicrosoftRewardsFarmer
 			string name = credentials.Username.Substring(0, credentials.Username.IndexOf('@'));
 			string points = $"{userPoints} point";
 			string value =
-				$"<$Green;{name}><$Gray; - ><$Blue;{points}><$Gray;: >{status}";
+				$"<$Gray;[><$Green;{name}><$Gray;](><$Cyan;{progress}/{totalProgress}><$Gray;) - ><$Blue;{points}><$Gray;: >{status}";
 
 			DynamicConsole.ClearLine(consoleTop);
 			DynamicConsole.CustomAction(
