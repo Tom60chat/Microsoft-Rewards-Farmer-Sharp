@@ -22,12 +22,7 @@ This should look like:
   "Accounts": [{
       "Username": "you@domain.com",
       "Password": "yourPassword"
-    }],
-  <!--"Rewards": [{
-      "Title": "Your Reward",
-      "Cost": 10000,
-      "Discounted": 6000
-    }]-->
+    }]
 }
 ```
 
