@@ -1,6 +1,8 @@
 # Microsoft Rewards Points Farmer  
 Allows you to farm Microsoft Rewards points by one click  
 
+Please read the <a href=".#legal"><b>Legal Notice</b></a> before use
+
 Work on Windows, linux, macOS  
 
 <!--## Dependencies:  
@@ -30,7 +32,7 @@ This should look like:
 
 Start `Microsoft Rewards Farmer.exe`  
 
-## Legal Notice
+<a name='legal'>## Legal Notice</a>
 I am not responsible for what you do with this program, USE IT AT YOUR OWN RISK!  
 This program is made for education, and I learned a lot about using puppetter 😋  
 
