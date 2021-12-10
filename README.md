@@ -1,7 +1,7 @@
 # Microsoft Rewards Points Farmer  
 Allows you to farm Microsoft Rewards points by one click  
 
-Please read the <a href=".#legal"><b>Legal Notice</b></a> before use
+Please read the <a href="https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp#legal"><b>Legal Notice</b></a> before use
 
 Work on Windows, linux, macOS  
 
