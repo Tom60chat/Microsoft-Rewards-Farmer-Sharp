@@ -32,7 +32,7 @@ This should look like:
 
 Start `Microsoft Rewards Farmer.exe`  
 
-<a name='legal'>## Legal Notice</a>
+## <a name='legal'>Legal Notice</a>
 I am not responsible for what you do with this program, USE IT AT YOUR OWN RISK!  
 This program is made for education, and I learned a lot about using puppetter 😋  
 
