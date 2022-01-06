@@ -1,4 +1,5 @@
-﻿using PuppeteerSharp;
+﻿using Newtonsoft.Json.Linq;
+using PuppeteerSharp;
 using PuppeteerSharp.Input;
 using System;
 using System.Linq;
@@ -44,7 +45,7 @@ namespace MicrosoftRewardsFarmer
         }
 
         // https://github.com/puppeteer/puppeteer/issues/4356#issuecomment-487330171
-        public static async Task<bool> IsVisible(this ElementHandle elementHandle, Page page) => await page.EvaluateFunctionAsync<bool>(@"(el) => {
+        public static async Task<bool> IsVisible(this ElementHandle elementHandle) => await elementHandle.EvaluateFunctionAsync<bool>(@"(el) => {
                 if (!el || el.offsetParent === null)
                     return false;
 
@@ -185,12 +186,13 @@ namespace MicrosoftRewardsFarmer
         /// </summary>
         /// <param name="selector">A selector of an element to wait for</param>
         /// <param name="timeout">The time span to wait before canceling the wait</param> 
+        /// <param name="visibilityCheck">wait until the element is not visible instead of disappearing</param> 
         /// <returns>Task</returns>
-        public static async Task WaitForSelectorToHideAsync(this Page page, string selector, int timeout = 30000)
+        public static Task<bool> WaitForSelectorToHideAsync(this Page page, string selector, bool visibilityCheck = false, int timeout = 30000)
         {
             var tokenSource = new CancellationTokenSource();
             tokenSource.CancelAfter(timeout);
-            await WaitForSelectorToHideAsync(page, selector, tokenSource.Token);
+            return WaitForSelectorToHideAsync(page, selector, tokenSource.Token, visibilityCheck);
         }
 
         /// <summary>
@@ -198,30 +200,47 @@ namespace MicrosoftRewardsFarmer
         /// </summary>
         /// <param name="selector">A selector of an element to wait for</param>
         /// <returns>Task</returns>
-        public static async Task WaitForSelectorToHideAsync(this Page page, string selector, CancellationToken cancellationToken)
+        private static async Task<bool> WaitForSelectorToHideAsync(this Page page, string selector, CancellationToken cancellationToken, bool visibilityCheck = false)
         {
+            ElementHandle element;
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
                 {
-                    if (await page.QuerySelectorAsync(selector) != null)
+                    element = await page.QuerySelectorAsync(selector);
+                    if (element != null)
+                    {
+                        if (visibilityCheck && !await element.IsVisible())
+                            return true;
+
                         await Task.Delay(500);
+                    }
                     else
-                        break;
+                        return true;
                 }
                 catch (PuppeteerException) { break; }
-
-                /*try
-                {
-                    await page.WaitForSelectorAsync(selector, new WaitForSelectorOptions()
-                    {
-                        Timeout = 500,
-                        Hidden = true
-                    });
-                    break;
-                }
-                catch (PuppeteerException) { }*/
             };
+
+            return false;
+        }
+
+        public static Task<JToken> RemoveAsync(this Page page, string selector) => page.EvaluateFunctionAsync(@"(sel) =>
+        {
+			var elements = document.querySelectorAll(sel);
+			for (var i=0; i< elements.length; i++) {
+				elements[i].parentNode.removeChild(elements[i]);
+			}
+		}", selector);
+
+        public static async Task<string> GetInnerTextAsync(this Page page, string selector)
+        {
+            var element = await page.EvaluateFunctionAsync<JValue>(@"(sel) => {
+					        const element = document.querySelector(sel);
+					        return element && element.innerText; // will return undefined if the element is not found
+		        }", selector);
+
+            return element.Value.ToString();
         }
     }
 }

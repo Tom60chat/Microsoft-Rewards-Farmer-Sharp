@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>MicrosoftRewardsFarmer</RootNamespace>
     <AssemblyName>Microsoft Rewards Farmer</AssemblyName>
-    <Version>0.3.0</Version>
+    <Version>0.5.0</Version>
     <PackageProjectUrl>https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp</PackageProjectUrl>
     <Description>A .NET app to farm Microsoft Rewards points.</Description>
     <NeutralLanguage>en</NeutralLanguage>
@@ -17,6 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Dictionary.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Settings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

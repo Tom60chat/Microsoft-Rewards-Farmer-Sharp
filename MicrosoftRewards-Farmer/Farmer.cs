@@ -70,7 +70,7 @@ namespace MicrosoftRewardsFarmer
 				Console.WriteLine(e.Message);
 				browser = await PuppeteerUtility.GetBrowser();
 			}*/
-			
+
 			try
 			{
 				// Init
@@ -121,7 +121,10 @@ namespace MicrosoftRewardsFarmer
 				var endRewardPoints = await GetRewardsPointsAsync();
 				progress++;
 
-				WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
+				if (userPoints == 0)
+					WriteStatus($"Done - <$Yellow;Total: {endRewardPoints}>");
+				else
+					WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
 #if !DEBUG
 			}
 			catch (Exception e)
@@ -161,52 +164,57 @@ namespace MicrosoftRewardsFarmer
 
 			var url = "https://login.live.com";
 			ElementHandle element;
+			bool succes = false;
 
 			if (!await page.TryGoToAsync(url, WaitUntilNavigation.DOMContentLoaded))
 				throw new Exception("Login: navigation failed");
 
 			// Enter Username
-			element = await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
-			await element.TypeAsync(credentials.Username);
-			element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
-			await element.ClickAsync();
+			await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
+			while (!succes)
+			{
+				await page.ReplaceAllTextAsync("input[name = \"loginfmt\"]", credentials.Username);
+				element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
+				await element.ClickAsync();
+
+				succes = await page.WaitForSelectorToHideAsync("input[name = \"loginfmt\"]", true, 4000);
+			}
 
 			// Enter password
 			if (credentials.Password != "")
 			{
-				await page.WaitForSelectorAsync("input[name = \"passwd\"]");
-				await page.ReplaceAllTextAsync("input[name = \"passwd\"]", credentials.Password);
+				succes = false;
 
-				while (true)
+				await page.WaitForSelectorAsync("input[name = \"passwd\"]");
+
+				while (!succes && page.Url.StartsWith("https://login.live.com/"))
 				{
 					try
 					{
+						await page.ReplaceAllTextAsync("input[name = \"passwd\"]", credentials.Password);
+
 						element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 						await element.ClickAsync();
-						await page.WaitForSelectorAsync("input[name = \"passwd\"]", new WaitForSelectorOptions()
-						{
-							Timeout = 500,
-							Hidden = true
-						});
+						succes = await page.WaitForSelectorToHideAsync("input[name = \"passwd\"]", true, 4000);
 						break;
 					}
-					catch (PuppeteerException) { }
+					catch (PuppeteerException)
+					{
+						if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
+							break;
+					}
 				}
 			}
 
 			// Don't remind password
-			while (true)
+			while (!succes && page.Url.StartsWith("https://login.live.com/"))
 			{
 				try
 				{
-					await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 0 });
+					await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 600000 });
 					await page.ClickAsync("input[id = \"idSIButton9\"]");
-
-					await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions()
-					{
-						Timeout = 5000,
-						Hidden = true
-					});
+					
+					succes = await page.WaitForSelectorToHideAsync("input[name = \"DontShowAgain\"]", true, 4000);
 					break;
 				}
 				catch (PuppeteerException) { }
@@ -220,7 +228,10 @@ namespace MicrosoftRewardsFarmer
 			WriteStatus("Obtaining the number of current reward points...");
 
 			if (!page.Url.StartsWith("https://www.bing.com/search"))
+			{
 				await RunSearchesAsync(1); // Go to Bing and connect
+				WriteStatus("Obtaining the number of current reward points...");
+			}
 			if (mobile)
 			{
 				await SwitchToDesktopAsync();
@@ -230,57 +241,57 @@ namespace MicrosoftRewardsFarmer
 			await page.WaitForSelectorAsync("span[id=\"id_rc\"]");
 			await page.WaitTillHTMLRendered();
 			//await page.WaitForTimeoutAsync(500); // Let animation finish // Need
-			var pointsJson = await page.EvaluateFunctionAsync<JValue>(@"() => {
-					const rewardsSel = `span[id=""id_rc""]`;
-					const element = document.querySelector( rewardsSel );
-					return element && element.innerText; // will return undefined if the element is not found
-				}"); // Doesn't allways return points
+			uint points = 0;
 
-			return uint.TryParse(pointsJson.Value.ToString().Replace(" ", ""), out var points) ? points : 0;
+			while (true)
+			{
+				var pointsValue = await page.GetInnerTextAsync("span[id=\"id_rc\"]");
+
+				if (uint.TryParse(pointsValue.Replace(" ", ""), out var newPoints))
+				{
+					if (points == newPoints)
+						return points;
+					else
+						points = newPoints;
+				}
+				else
+					return 0;
+			}
 		}
 
 		protected async Task GetCardsAsync()
         {
 			WriteStatus("Gettings cards...");
 
-			var url = "https://account.microsoft.com/rewards";
+			ElementHandle element;
 
-			while (!page.Url.StartsWith("https://rewards.microsoft.com/?refref=amc")) // Network issue, you know
-			{
-				await page.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
-
-				// If not logged
-				if (await page.QuerySelectorAsync("a[id=\"raf-signin-link-id\"]") != null)
-				{
-					// Click on the "Connect to Rewards" link
-					await page.ClickAsync("a[id=\"raf-signin-link-id\"]");
-					await page.WaitForSelectorToHideAsync("a[id=\"raf-signin-link-id\"]");
-				}
-			}
+			await GoToMicrosoftRewardsPage();
 
 			await page.WaitForSelectorAsync("div[class=\"points clearfix\"]");
-			var cardsElement = await page.QuerySelectorAllAsync("div[class=\"points clearfix\"]");
 
-			int i = 0;
-			foreach (var cardElement in cardsElement)
-            {
-				i++;
+			// Get cards
+			var cardsElement = await page.QuerySelectorAllAsync("span[class=\"mee-icon mee-icon-AddMedium\"]"); // div[class=\"points clearfix\"]
+
+			for (int i = 0; i < cardsElement.Length; i++)
+			{
+				element = cardsElement[i];
 				WriteStatus($"Card processing {i} / {cardsElement.Length}");
 
-				if (await cardElement.IsVisible(page)) // IsIntersectingViewportAsync = bad
+				await CleanMicrosoftRewardsPage();
+				if (await element.IsVisible()) // IsIntersectingViewportAsync = bad
 				{
-					var promise = browser.PromiseNewPage();
+					var promise = browser.PromiseNewPage(5000);
 
 					try
 					{
-						await cardElement.ClickAsync();
+						await element.ClickAsync();
 					}
 					catch (PuppeteerException) { continue; } // Not a HTMLElement
 
 					var cardPage = promise.Result.Result; // This is stupid
-					if (cardPage == null)
-						throw new NullReferenceException(
-							credentials.Username + " - Can't find the new page");
+					if (cardPage == null) // This method work very well so if the new page is null it's because theire no new page.
+						continue;
+						//throw new NullReferenceException("Can't find the new page");
 
 					await cardPage.WaitTillHTMLRendered();
 					await CheckBingReady(cardPage);
@@ -292,6 +303,69 @@ namespace MicrosoftRewardsFarmer
 					promise.GetAwaiter().GetResult().GetAwaiter().GetResult(); // This is even more stupid
 				}
             }
+		}
+
+		private async Task GoToMicrosoftRewardsPage()
+		{
+			var url = "https://account.microsoft.com/rewards";
+
+			while (!page.Url.StartsWith("https://rewards.microsoft.com/")) // Network issue, you know
+			{
+				await page.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
+
+				// Bruteforce this page
+				while (page.Url.StartsWith("https://rewards.microsoft.com/welcome"))
+				{
+					if (await page.QuerySelectorAsync("#start-earning-rewards-link") != null) // Sign up (or sign in)
+					{
+						// Wait the button to be enabled
+						await page.WaitForSelectorToHideAsync("a[id=\"start-earning-rewards-link\"][disabled=\"disabled\"]");
+
+						// Click on the "Sign up to Rewards" link (Name can't be wrong I have the french version so...)
+						await page.ClickAsync("#start-earning-rewards-link");
+						await page.WaitForSelectorToHideAsync("#start-earning-rewards-link", false, 2000);
+					}
+					else // Weird... (Maybe network, it's always network)
+					{
+						new Exception("Can't sign in or sign up to Microsoft Rewards");
+					}
+				}
+			}
+
+			// Check if the account has not been ban
+			if (await page.QuerySelectorAsync("#error") != null)
+				await GetRawardsError();
+		}
+
+		private async Task GetRawardsError()
+        {
+			var errorJson = await page.GetInnerTextAsync("h1[class=\"text-headline spacer-32-bottom\"]");
+
+			throw new Exception("Rewards error - " + errorJson);
+		}
+
+		private async Task CleanMicrosoftRewardsPage()
+		{
+			ElementHandle element;
+
+			// Wellcome (75 points it's not worth) // TODO: Remove function
+			await page.RemoveAsync("div[ui-view=\"modalContent\"]");
+			await page.RemoveAsync("div[role=\"presentation\"]");
+
+			// Remove pop up
+			while ((element = await page.QuerySelectorAsync(".mee-icon-Cancel")) != null && await element.IsVisible())
+			{
+				await element.ClickAsync();
+			}
+
+			/*if ((element = await page.QuerySelectorAsync("button[class=\"c-glyph glyph-cancel\"]")) != null)
+			{
+				var tokenSource = new CancellationTokenSource();
+				tokenSource.CancelAfter(30000);
+				while (!await element.IsVisible()) { if (tokenSource.IsCancellationRequested) break; }
+				if (!tokenSource.IsCancellationRequested)
+					await element.ClickAsync();
+			}*/
 		}
 
 		protected async Task ProceedCard(Page cardPage)
@@ -306,83 +380,99 @@ namespace MicrosoftRewardsFarmer
 				// Click on the first option (I wonder why it's always the first option that is the most voted 🤔)
 
 				await element.ClickAsync();
-				await page.WaitForSelectorToHideAsync("div[id^=\"btoption\"]");
+				await cardPage.WaitForSelectorToHideAsync("div[id^=\"btoption\"]");
 
 				// should do better
 				/*if ((element = await cardPage.QuerySelectorAsync("div[id^=\"btoption\"]")) != null) // click 
 				{
 					await element.ClickAsync();
 				}*/
+
+				return;
 			}
 
-			// 50/50 & Quiz // TODO: make it smart
+			// 50/50 & Quiz
 			if ((element = await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]")) != null)
 			{
 				await element.ClickAsync();
 			}
-			// Quiz & 50/50
-			while ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null) // click 
+			// Quiz & 50/50 // TODO: make it smart
+			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null)
 			{
-				await CheckBingReady(cardPage);
-
-				while (!await element.IsVisible(cardPage))
+				while (element != null) // click 
 				{
-					if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-						return;
-				}
+					await CheckBingReady(cardPage);
 
-				await element.ClickAsync();
-
-				while (true)
-				{
-					try
-					{
-						await cardPage.WaitForSelectorAsync("div[id^=\"rqAnswerOption\"]", new WaitForSelectorOptions()
-						{
-							Timeout = 500,
-							Hidden = false
-						});
-						break;
-					}
-					catch (PuppeteerException)
+					while (!await element.IsVisible())
 					{
 						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
 							return;
 					}
+
+					await element.ClickAsync();
+
+					while (true)
+					{
+						try
+						{
+							await cardPage.WaitForSelectorAsync("div[id^=\"rqAnswerOption\"]", new WaitForSelectorOptions()
+							{
+								Timeout = 500,
+								Hidden = false
+							});
+							break;
+						}
+						catch (PuppeteerException)
+						{
+							if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
+								return;
+						}
+					}
+
+					element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]");
 				}
+
+				return;
 			}
 			// Quick quiz
-			while ((element = await cardPage.QuerySelectorAsync("input[class=\"rqOption\"]")) != null) // click 
+			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null)
 			{
-				await CheckBingReady(cardPage);
-
-				while (!await element.IsVisible(cardPage))
+				while (element != null) // click 
 				{
-					if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-						return;
-				}
+					await CheckBingReady(cardPage);
 
-				await element.ClickAsync();
-
-				while (true)
-				{
-					try
-					{
-						await cardPage.WaitForSelectorAsync("input[class=\"rqOption\"]", new WaitForSelectorOptions()
-						{
-							Timeout = 500,
-							Hidden = false
-						});
-						break;
-					}
-					catch (PuppeteerException)
+					while (!await element.IsVisible())
 					{
 						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
 							return;
 					}
-				};
-				/*await cardPage.WaitTillHTMLRendered(5000);
-				await cardPage.WaitForTimeoutAsync(500);*/
+
+					await element.ClickAsync();
+
+					while (true)
+					{
+						try
+						{
+							await cardPage.WaitForSelectorAsync("input[class=\"rqOption\"]", new WaitForSelectorOptions()
+							{
+								Timeout = 500,
+								Hidden = false
+							});
+							break;
+						}
+						catch (PuppeteerException)
+						{
+							if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
+								return;
+						}
+					};
+					/*await cardPage.WaitTillHTMLRendered(5000);
+					await cardPage.WaitForTimeoutAsync(500);*/
+
+					element = await cardPage.QuerySelectorAsync("input[class=\"rqOption\"]");
+				}
+
+				return;
 			}
 		}
 
@@ -412,28 +502,7 @@ namespace MicrosoftRewardsFarmer
 			}
 		}
 
-		private string[] GetSearchTerms(byte num = 20)
-		{
-			
-			var url = $"https://random-word-api.herokuapp.com/word?swear=0&number={num}";
-
-			var jsonTerms = new WebClient().DownloadString(url);
-			var array = JArray.Parse(jsonTerms);
-			
-			return array.Values<string>().ToArray();
-
-			// Less hummain, but use less data to use
-			// TODO
-			/*for (int i = 0; i < num; i++)
-			{
-				var sb = new StringBuilder();
-				var rand = new Random();
-
-				for (int j = 0; j < rand.Next(3, 12); j++)
-					rand.Next('A', 'z');
-			}*/
-			
-		}
+		private string[] GetSearchTerms(uint num = 20) => RandomWord.GetWords(num);
 
 		protected async Task SwitchToMobileAsync()
 		{
@@ -494,7 +563,7 @@ namespace MicrosoftRewardsFarmer
 			element = await page.QuerySelectorAsync("button[id=\"bnp_btn_accept\"]");
 			if (element != null)
 			{
-				while (!(await element.IsVisible(page))) { }
+				while (!(await element.IsVisible())) { }
 				await element.ClickAsync();
 			}
 
@@ -502,7 +571,7 @@ namespace MicrosoftRewardsFarmer
 			element = await page.QuerySelectorAsync("span[id=\"bnp_hfly_cta2\"]");
 			if (element != null)
 			{
-				while (!(await element.IsVisible(page))) { }
+				while (!(await element.IsVisible())) { }
 				await element.ClickAsync();
 			}
 
