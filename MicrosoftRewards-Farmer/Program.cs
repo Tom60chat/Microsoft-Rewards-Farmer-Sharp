@@ -1,4 +1,5 @@
 ﻿using ExitSignal;
+using MicrosoftRewardsFarmer.TheFarm;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;

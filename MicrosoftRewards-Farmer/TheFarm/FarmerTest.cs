@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MicrosoftRewardsFarmer
+namespace MicrosoftRewardsFarmer.TheFarm
 {
     public class FarmerTest : Farmer
     {
@@ -22,7 +22,7 @@ namespace MicrosoftRewardsFarmer
 
             for (int i = 0; i < n; i++)
             {
-                var page = await browser.NewPageAsync();
+                var page = await Browser.NewPageAsync();
 
                 task = Task.Run(async () =>
                 {
@@ -42,50 +42,50 @@ namespace MicrosoftRewardsFarmer
         public async Task TestLogin()
         {
             await Init();
-            await LoginToMicrosoftAsync();
-            await page.GoToAsync("https://bing.com");
+            await Bing.LoginToMicrosoftAsync();
+            await MainPage.GoToAsync("https://bing.com");
         }
 
         public async Task TestGetRewardsPoints()
         {
             await Init();
-            await LoginToMicrosoftAsync();
-            var points = await GetRewardsPointsAsync();
+            await Bing.LoginToMicrosoftAsync();
+            var points = await MsRewards.GetRewardsPointsAsync();
             Console.WriteLine(points);
         }
 
         public async Task TestGetCards()
         {
             await Init();
-            await LoginToMicrosoftAsync();
-            await GetCardsAsync();
+            await Bing.LoginToMicrosoftAsync();
+            await MsRewards.GetCardsAsync();
 
         }
 
         public async Task TestProceedCard()
         {
             await Init();
-            await RunSearchesAsync(1);
+            await Bing.RunSearchesAsync(1);
             // Quiz
-            await page.TryGoToAsync(
+            await MainPage.TryGoToAsync(
                 "https://www.bing.com/search?q=Nouvelles%20technologies&rnoreward=1&mkt=FR-FR&FORM=ML12JG&skipopalnative=true&rqpiodemo=1&filters=BTEPOKey:%22REWARDSQUIZ_FRFR_MicrosoftRewardsQuizCB_20211130%22%20BTROID:%22Gamification_DailySet_FRFR_20211130_Child2%22%20BTROEC:%220%22%20BTROMC:%2230%22", // Quiz
                 WaitUntilNavigation.Networkidle0);
-            await ProceedCard(page);
+            await MsRewards.ProceedCard(MainPage);
             // Quick quiz
-            await page.TryGoToAsync(
+            await MainPage.TryGoToAsync(
                 "https://www.bing.com/search?q=qu%27est-ce%20que%20Z%20Event&rnoreward=1&mkt=FR-FR&FORM=ML12JG&skipopalnative=true&rqpiodemo=1&filters=BTEPOKey:%22REWARDSQUIZ_FRFR_MicrosoftRewardsQuizDS_20211201%22%20BTROID:%22Gamification_DailySet_FRFR_20211201_Child2%22%20BTROEC:%220%22%20BTROMC:%2230%22", // Quick Quiz
                 WaitUntilNavigation.Networkidle0);
-            await ProceedCard(page);
+            await MsRewards.ProceedCard(MainPage);
             // 50/50
-            await page.TryGoToAsync(
+            await MainPage.TryGoToAsync(
                 "https://www.bing.com/search?q=langue%20fran%c3%a7aise&rnoreward=1&mkt=FR-FR&FORM=ML12JG&skipopalnative=true&rqpiodemo=1&filters=BTEPOKey:%22REWARDSQUIZ_FR-FR_ThisOrThat_FrenchLangCountries_EB_20211129%22%20BTROID:%22Gamification_DailySet_FRFR_20211129_Child2%22%20BTROEC:%220%22%20BTROMC:%2250%22%20BTROQN:%220%22", // 50/50
                 WaitUntilNavigation.Networkidle0);
-            await ProceedCard(page);
+            await MsRewards.ProceedCard(MainPage);
             // Poll
-            /*await page.TryGoToAsync(
+            /*await Page.TryGoToAsync(
                 "https://www.bing.com/search?q=forets%20en%20france&rnoreward=1&mkt=FR-FR&skipopalnative=true&form=ML17QA&filters=PollScenarioId:%22POLL_FRFR_RewardsDailyPoll_20211207%22%20BTROID:%22Gamification_DailySet_FRFR_20211207_Child3%22%20BTROEC:%220%22%20BTROMC:%2210%22", // Pool
                 WaitUntilNavigation.Networkidle0);*/
-            await ProceedCard(page);
+            await MsRewards.ProceedCard(MainPage);
         }
 
         public async Task RunSearchesTest()
@@ -95,7 +95,7 @@ namespace MicrosoftRewardsFarmer
             await Init();
 
             for (int i = 0; i < n; i++)
-                await RunSearchesAsync(1);
+                await Bing.RunSearchesAsync(1);
 
             await StopAsync();
         }
@@ -105,13 +105,13 @@ namespace MicrosoftRewardsFarmer
             int n = 2;
 
             await Init();
-            await RunSearchesAsync(1);
+            await Bing.RunSearchesAsync(1);
 
             for (int i = 0; i < n; i++)
             {
-                await SwitchToMobileAsync();
+                await Bing.SwitchToMobileAsync();
                 await Task.Delay(250);
-                await SwitchToDesktopAsync();
+                await Bing.SwitchToDesktopAsync();
             }
 
             await StopAsync();
@@ -127,7 +127,7 @@ namespace MicrosoftRewardsFarmer
             for (int i = 0; i < n; i++)
             {
                 task = Task.Run(() =>
-                    DisplayRedemptionOptions((uint)rand.Next())
+                    MsRewards.DisplayRedemptionOptions((uint)rand.Next())
                 );
                 tasks[i] = task;
             }
