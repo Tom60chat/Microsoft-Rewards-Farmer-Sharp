@@ -173,6 +173,9 @@ namespace MicrosoftRewardsFarmer
 			await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
 			while (!succes)
 			{
+				if (await page.QuerySelectorAsync("input[name = \"loginfmt\"]") == null)
+					break;
+
 				await page.ReplaceAllTextAsync("input[name = \"loginfmt\"]", credentials.Username);
 				element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 				await element.ClickAsync();
@@ -191,26 +194,44 @@ namespace MicrosoftRewardsFarmer
 				{
 					try
 					{
+						if (await page.QuerySelectorAsync("input[name = \"passwd\"]") == null)
+							break;
+
 						await page.ReplaceAllTextAsync("input[name = \"passwd\"]", credentials.Password);
 
 						element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 						await element.ClickAsync();
 						succes = await page.WaitForSelectorToHideAsync("input[name = \"passwd\"]", true, 4000);
-						break;
 					}
 					catch (PuppeteerException)
 					{
-						if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
-							break;
+						continue;
+						/*if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
+							break;*/
 					}
 				}
 			}
 
+			await page.WaitTillHTMLRendered();
+
+			// User warning
+			if (page.Url.StartsWith("https://account.live.com/Abuse"))
+            {
+				var message = await page.GetInnerTextAsync("#StartHeader");
+
+				throw new Exception("Login error - " + message);
+			}
+
 			// Don't remind password
+			succes = false;
+
 			while (!succes && page.Url.StartsWith("https://login.live.com/"))
 			{
 				try
 				{
+					if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") == null)
+						break;
+
 					await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 600000 });
 					await page.ClickAsync("input[id = \"idSIButton9\"]");
 					
@@ -584,7 +605,7 @@ namespace MicrosoftRewardsFarmer
 			}
 
 			if (page.Url.StartsWith("https://account.live.com/proofs/Verify")) // Oh poop
-				throw new Exception("This account must be verified.");
+				throw new Exception("Bing error - This account must be verified.");
 		}
 
 		private void WriteStatus(string status)

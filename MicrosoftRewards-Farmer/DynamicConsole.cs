@@ -7,6 +7,7 @@ namespace MicrosoftRewardsFarmer
     public static class DynamicConsole
     {
         private static readonly object DynamicConsoleLock = new object();
+        private static readonly Dictionary<int, string> consoleView = new Dictionary<int, string>();
 
         /// <summary>
         ///     Sets the position of the cursor and writes the specified string value to the standard output stream.
@@ -96,8 +97,6 @@ namespace MicrosoftRewardsFarmer
         /// </return>
         public static int CustomAction(Action action, int left, int top)
         {
-            int oldLeft = Console.CursorLeft;
-            int oldTop = Console.CursorTop;
             int newLeft = 0;
 
             lock (DynamicConsoleLock)
