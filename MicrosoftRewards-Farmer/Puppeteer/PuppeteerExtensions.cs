@@ -220,6 +220,7 @@ namespace MicrosoftRewardsFarmer
                         return true;
                 }
                 catch (PuppeteerException) { break; }
+                catch (NullReferenceException) { break; }
             };
 
             return false;

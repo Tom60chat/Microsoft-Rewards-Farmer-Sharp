@@ -93,7 +93,7 @@ namespace MicrosoftRewardsFarmer
 
 			await Init(consoleTop);
 
-#if !DEBUG
+#if !DEBUG || true
 			try
 			{
 #endif
@@ -125,7 +125,7 @@ namespace MicrosoftRewardsFarmer
 					WriteStatus($"Done - <$Yellow;Total: {endRewardPoints}>");
 				else
 					WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
-#if !DEBUG
+#if !DEBUG || true
 			}
 			catch (Exception e)
 			{
@@ -136,14 +136,14 @@ namespace MicrosoftRewardsFarmer
 			{
 #endif
 				if (!Program.KeepBrowserAlive)
-					//browser.Dispose();
+				//browser.Dispose();
 				//else
 				{
 					await browser.CloseAsync();
 					await browser.DisposeAsync();
 				}
 				farming = false;
-#if !DEBUG
+#if !DEBUG || true
 			}
 #endif
 		}
@@ -171,11 +171,8 @@ namespace MicrosoftRewardsFarmer
 
 			// Enter Username
 			await page.WaitForSelectorAsync("input[name = \"loginfmt\"]");
-			while (!succes)
-			{
-				if (await page.QuerySelectorAsync("input[name = \"loginfmt\"]") == null)
-					break;
-
+			while (!succes && await page.QuerySelectorAsync("input[name = \"loginfmt\"]") != null)
+			{ 
 				await page.ReplaceAllTextAsync("input[name = \"loginfmt\"]", credentials.Username);
 				element = await page.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
 				await element.ClickAsync();
@@ -190,12 +187,12 @@ namespace MicrosoftRewardsFarmer
 
 				await page.WaitForSelectorAsync("input[name = \"passwd\"]");
 
-				while (!succes && page.Url.StartsWith("https://login.live.com/"))
+				while (!succes &&
+					page.Url.StartsWith("https://login.live.com/") &&
+					await page.QuerySelectorAsync("input[name = \"passwd\"]") != null)
 				{
 					try
 					{
-						if (await page.QuerySelectorAsync("input[name = \"passwd\"]") == null)
-							break;
 
 						await page.ReplaceAllTextAsync("input[name = \"passwd\"]", credentials.Password);
 
@@ -203,12 +200,7 @@ namespace MicrosoftRewardsFarmer
 						await element.ClickAsync();
 						succes = await page.WaitForSelectorToHideAsync("input[name = \"passwd\"]", true, 4000);
 					}
-					catch (PuppeteerException)
-					{
-						continue;
-						/*if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
-							break;*/
-					}
+					catch (PuppeteerException) { }
 				}
 			}
 
@@ -225,12 +217,12 @@ namespace MicrosoftRewardsFarmer
 			// Don't remind password
 			succes = false;
 
-			while (!succes && page.Url.StartsWith("https://login.live.com/"))
+			while (!succes &&
+				page.Url.StartsWith("https://login.live.com/") &&
+				await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
 			{
 				try
 				{
-					if (await page.QuerySelectorAsync("input[name = \"DontShowAgain\"]") == null)
-						break;
 
 					await page.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 600000 });
 					await page.ClickAsync("input[id = \"idSIButton9\"]");
@@ -394,10 +386,13 @@ namespace MicrosoftRewardsFarmer
 			// Wait quest pop off
 			//await page.WaitForTimeoutAsync(500);
 			ElementHandle element;
+			bool succes;
 
 			// Poll quest (Don't support multi quest)
 			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"btoption\"]")) != null) // click 
 			{
+				await CheckBingReady(cardPage);
+
 				// Click on the first option (I wonder why it's always the first option that is the most voted 🤔)
 
 				await element.ClickAsync();
@@ -412,88 +407,59 @@ namespace MicrosoftRewardsFarmer
 				return;
 			}
 
-			// 50/50 & Quiz
-			if ((element = await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]")) != null)
+			// 50/50 & (quick)Quiz // TODO: make it smart
+			succes = false;
+			while (!succes && (element = await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]")) != null)
 			{
+				await CheckBingReady(cardPage);
+
 				await element.ClickAsync();
+				succes = await cardPage.WaitForSelectorToHideAsync("input[id=\"rqStartQuiz\"]", true, 4000);
 			}
-			// Quiz & 50/50 // TODO: make it smart
-			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null)
-			{
-				while (element != null) // click 
-				{
-					await CheckBingReady(cardPage);
 
-					while (!await element.IsVisible())
-					{
-						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-							return;
-					}
+			// 50/50 & Quiz
+			await ProceedQuizCard(cardPage, "div[id^=\"rqAnswerOption\"]");
 
-					await element.ClickAsync();
-
-					while (true)
-					{
-						try
-						{
-							await cardPage.WaitForSelectorAsync("div[id^=\"rqAnswerOption\"]", new WaitForSelectorOptions()
-							{
-								Timeout = 500,
-								Hidden = false
-							});
-							break;
-						}
-						catch (PuppeteerException)
-						{
-							if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-								return;
-						}
-					}
-
-					element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]");
-				}
-
-				return;
-			}
 			// Quick quiz
-			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"rqAnswerOption\"]")) != null)
+			await ProceedQuizCard(cardPage, "input[class=\"rqOption\"]");
+		}
+
+		private async Task ProceedQuizCard(Page cardPage, string selector)
+		{
+			ElementHandle element;
+
+			if ((await cardPage.QuerySelectorAsync(selector)) != null)
 			{
-				while (element != null) // click 
+				while (true)
 				{
+					if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null) break;
+
+					try
+					{
+						element = await cardPage.WaitForSelectorAsync(selector,
+							new WaitForSelectorOptions() { Timeout = 4000 });
+					}
+					catch (PuppeteerException)
+					{
+						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null) break;
+						await cardPage.ReloadAsync();
+						continue;
+					}
+
+					if (element == null) continue;
+
 					await CheckBingReady(cardPage);
 
 					while (!await element.IsVisible())
 					{
-						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-							return;
+						if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null) break;
+						await cardPage.WaitForSelectorAsync(selector,
+							new WaitForSelectorOptions() { Timeout = 0, Visible = true });
 					}
 
 					await element.ClickAsync();
-
-					while (true)
-					{
-						try
-						{
-							await cardPage.WaitForSelectorAsync("input[class=\"rqOption\"]", new WaitForSelectorOptions()
-							{
-								Timeout = 500,
-								Hidden = false
-							});
-							break;
-						}
-						catch (PuppeteerException)
-						{
-							if (await cardPage.QuerySelectorAsync("div[class=\"cico rqSumryLogo \"]") != null)
-								return;
-						}
-					};
-					/*await cardPage.WaitTillHTMLRendered(5000);
-					await cardPage.WaitForTimeoutAsync(500);*/
-
-					element = await cardPage.QuerySelectorAsync("input[class=\"rqOption\"]");
+					await cardPage.WaitForSelectorToHideAsync(selector, false, 4000);
 				}
-
-				return;
 			}
 		}
 

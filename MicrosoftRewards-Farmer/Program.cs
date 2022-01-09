@@ -32,19 +32,18 @@ namespace MicrosoftRewardsFarmer
 			Settings = GetSettings();
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
-#if DEBUG
-			//Test().GetAwaiter().GetResult();
+#if !DEBUG || false
+			StartFarming();
+#else
+			Test().GetAwaiter().GetResult();
 			//MultiTest();
 			//StartFarming();
 			//SlowFarm();
-			StartFarming();
-#else
-			StartFarming();
 #endif
 
 			Console.WriteLine("Every accounts has finish!");
 			Console.WriteLine("Press any key to close");
-#if !DEBUG
+#if !DEBUG || true
 			Console.ReadKey();
 #endif
 		}
