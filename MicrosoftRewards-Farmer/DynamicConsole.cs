@@ -7,7 +7,6 @@ namespace MicrosoftRewardsFarmer
     public static class DynamicConsole
     {
         private static readonly object DynamicConsoleLock = new object();
-        private static readonly Dictionary<int, string> consoleView = new Dictionary<int, string>();
 
         /// <summary>
         ///     Sets the position of the cursor and writes the specified string value to the standard output stream.
