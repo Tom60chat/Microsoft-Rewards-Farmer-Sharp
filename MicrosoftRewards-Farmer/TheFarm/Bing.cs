@@ -32,13 +32,19 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 			// Enter Username
 			await farmer.MainPage.WaitForSelectorAsync("input[name = \"loginfmt\"]");
-			while (!succes && await farmer.MainPage.QuerySelectorAsync("input[name = \"loginfmt\"]") != null)
+			while (!succes)
 			{
-				await farmer.MainPage.ReplaceAllTextAsync("input[name = \"loginfmt\"]", farmer.Credentials.Username);
-				element = await farmer.MainPage.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
-				await element.ClickAsync();
+				try
+				{
+					if (await farmer.MainPage.QuerySelectorAsync("input[name = \"loginfmt\"]") == null) break;
 
-				succes = await farmer.MainPage.WaitForSelectorToHideAsync("input[name = \"loginfmt\"]", true, 4000);
+					await farmer.MainPage.ReplaceAllTextAsync("input[name = \"loginfmt\"]", farmer.Credentials.Username);
+					element = await farmer.MainPage.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
+					await element.ClickAsync();
+
+					succes = await farmer.MainPage.WaitForSelectorToHideAsync("input[name = \"loginfmt\"]", true, 4000);
+				}
+				catch (PuppeteerException) { }
 			}
 
 			// Enter password
@@ -49,11 +55,11 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				await farmer.MainPage.WaitForSelectorAsync("input[name = \"passwd\"]");
 
 				while (!succes &&
-					farmer.MainPage.Url.StartsWith("https://login.live.com/") &&
-					await farmer.MainPage.QuerySelectorAsync("input[name = \"passwd\"]") != null)
+					farmer.MainPage.Url.StartsWith("https://login.live.com/"))
 				{
 					try
 					{
+						if (await farmer.MainPage.QuerySelectorAsync("input[name = \"passwd\"]") == null) break;
 
 						await farmer.MainPage.ReplaceAllTextAsync("input[name = \"passwd\"]", farmer.Credentials.Password);
 
@@ -79,11 +85,11 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			succes = false;
 
 			while (!succes &&
-				farmer.MainPage.Url.StartsWith("https://login.live.com/") &&
-				await farmer.MainPage.QuerySelectorAsync("input[name = \"DontShowAgain\"]") != null)
+				farmer.MainPage.Url.StartsWith("https://login.live.com/"))
 			{
 				try
 				{
+					if (await farmer.MainPage.QuerySelectorAsync("input[name = \"DontShowAgain\"]") == null) break;
 
 					await farmer.MainPage.WaitForSelectorAsync("input[name = \"DontShowAgain\"]", new WaitForSelectorOptions() { Timeout = 600000 });
 					await farmer.MainPage.ClickAsync("input[id = \"idSIButton9\"]");
