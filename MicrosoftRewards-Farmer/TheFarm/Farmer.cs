@@ -110,13 +110,8 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			finally
 			{
 #endif
-				if (!Program.KeepBrowserAlive)
-				//browser.Dispose();
-				//else
-				{
-					await Browser.CloseAsync();
-					await Browser.DisposeAsync();
-				}
+				await Browser.CloseAsync();
+				await Browser.DisposeAsync();
 				farming = false;
 #if !DEBUG || true
 			}

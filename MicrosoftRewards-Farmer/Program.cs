@@ -12,12 +12,6 @@ namespace MicrosoftRewardsFarmer
 	class Program
 	{
 		#region Variables
-		internal const bool KeepBrowserAlive
-#if DEBUG
-			= false;
-#else
-			= false;
-#endif
 		static readonly List<Farmer> farmers = new List<Farmer>();
 		static readonly List<Task> tasks = new List<Task>();
 		static IExitSignal exitSignal;
@@ -33,7 +27,7 @@ namespace MicrosoftRewardsFarmer
 			Settings = GetSettings();
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
-#if !DEBUG || false
+#if !DEBUG || true
 			StartFarming();
 #else
 			Test().GetAwaiter().GetResult();
