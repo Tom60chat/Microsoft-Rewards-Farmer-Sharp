@@ -10,15 +10,17 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#region Constructors
 		private Farmer() { }
 
-		public Farmer(Credentials credentials)
+		public Farmer(Credentials credentials, bool headless = false)
 		{
 			Credentials = credentials;
+			this.headless = headless;
 			Bing = new Bing(this);
 			MsRewards = new MsRewards(this);
 		}
 		#endregion
 
 		#region Variables
+		bool headless;
 		int consoleTop;
 		bool farming;
 		uint userPoints;
@@ -44,7 +46,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		protected async Task Init(int consoleTop = 0)
 		{
 			this.consoleTop = consoleTop;
-			Browser = await PuppeteerUtility.GetBrowser();
+			Browser = await PuppeteerUtility.GetBrowser(headless);
 
 			try
 			{

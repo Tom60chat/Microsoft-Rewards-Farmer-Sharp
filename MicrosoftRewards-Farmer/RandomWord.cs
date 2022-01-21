@@ -29,7 +29,7 @@ namespace MicrosoftRewardsFarmer
 
         private static string[] GetWordsLocal(uint numberOfWords)
         {
-            // Kinda humain and offline dunno about RAM usage (Think about 100 of instance checking for a word)
+            // Kinda humain and offline ... (Test on 1000 thread for 100 word gen = 23Mo of Ram and 92% CPU on a Ryzen 5 1600X in 0.502s)
 
             var rand = new Random();
             string[] words = new string[numberOfWords]; // Can't find what the best between StringBuilder and string array
@@ -37,17 +37,20 @@ namespace MicrosoftRewardsFarmer
 
             using (var file = File.OpenRead("Dictionary.txt"))
             {
-
                 using (var streamFile = new StreamReader(file))
                 {
                     for (uint i = 0; i < numberOfWords; i++)
                     {
-                        position = rand.NextLong(0, file.Length);
-                        file.Seek(position, SeekOrigin.Begin);
+                        position = rand.NextLong(0, streamFile.BaseStream.Length);
+                        streamFile.DiscardBufferedData();
+                        streamFile.BaseStream.Seek(position, SeekOrigin.Begin);
 
-                        Debug.WriteLine(streamFile.ReadLine()); // Read partial line
+                        streamFile.ReadLine(); // Read partial line
                         if (streamFile.EndOfStream)
-                            file.Seek(0, SeekOrigin.Begin);
+                        {
+                            streamFile.DiscardBufferedData();
+                            streamFile.BaseStream.Seek(0, SeekOrigin.Begin);
+                        }
 
                         words[i] = streamFile.ReadLine();
                     }

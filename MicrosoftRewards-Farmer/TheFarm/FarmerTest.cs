@@ -88,22 +88,22 @@ namespace MicrosoftRewardsFarmer.TheFarm
             await MsRewards.ProceedCard(MainPage);
         }
 
-        public async Task RunSearchesTest()
+        public async Task RunSearchesTest(byte n = 2)
         {
-            int n = 2;
-
             await Init();
 
-            for (int i = 0; i < n; i++)
-                await Bing.RunSearchesAsync(1);
+            await Bing.RunSearchesAsync(n);
 
             await StopAsync();
         }
-
-        public async Task SwitchTest()
+        public void RunRandomWordGenTest(byte n = 2)
         {
-            int n = 2;
+            var words = RandomWord.GetWords(n);
+            //Debug.WriteLine(string.Join(',', words));
+        }
 
+        public async Task SwitchTest(int n = 2)
+        {
             await Init();
             await Bing.RunSearchesAsync(1);
 
@@ -117,9 +117,8 @@ namespace MicrosoftRewardsFarmer.TheFarm
             await StopAsync();
         }
 
-        public void TestDisplayRedemptionOptions()
+        public void TestDisplayRedemptionOptions(int n = 2)
         {
-            int n = 2;
             var rand = new Random();
             var tasks = new Task[n];
             Task task;

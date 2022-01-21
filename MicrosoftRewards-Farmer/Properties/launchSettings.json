@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Microsoft Rewards Farmer": {
+      "commandName": "Project",
+      "commandLineArgs": "-headless"
+    }
+  }
+}

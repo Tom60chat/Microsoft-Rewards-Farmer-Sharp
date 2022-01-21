@@ -8,7 +8,7 @@ namespace MicrosoftRewardsFarmer
 {
     public static class PuppeteerUtility
     {
-        public static async Task<Browser> GetBrowser()
+        public static async Task<Browser> GetBrowser(bool headless = false)
         {
             string executablePath = null;
 
@@ -25,7 +25,7 @@ namespace MicrosoftRewardsFarmer
                 Args = new string[] {
                     "--incognito",
                   },
-                Headless = false,
+                Headless = headless,
             });
             return br;
         }

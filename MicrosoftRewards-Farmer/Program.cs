@@ -24,14 +24,25 @@ namespace MicrosoftRewardsFarmer
 		#region Methods
 		static void Main(string[] args)
 		{
+			bool headless = false;
+
+			foreach(var arg in args)
+				switch (arg)
+				{
+					case "-h":
+					case "-headless":
+						headless = true;
+							break;
+				}
+
 			Settings = GetSettings();
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
 #if !DEBUG || true
-			StartFarming();
+			StartFarming(headless);
 #else
-			Test().GetAwaiter().GetResult();
-			//MultiTest();
+			//Test().GetAwaiter().GetResult();
+			MultiTest();
 			//StartFarming();
 			//SlowFarm();
 #endif
@@ -55,13 +66,13 @@ namespace MicrosoftRewardsFarmer
 			}
 		}
 
-        private static void StartFarming()
+        private static void StartFarming(bool headless = false)
 		{
 			int i = 0;
 
 			foreach (var credentials in Settings.Accounts)
 			{
-				var farmer = new Farmer(credentials);
+				var farmer = new Farmer(credentials, headless);
 				farmers.Add(farmer);
 				tasks.Add(farmer.FarmPoints(i));
 				i++;
@@ -83,9 +94,10 @@ namespace MicrosoftRewardsFarmer
 			//farmerTest.TestDisplayRedemptionOptions();
 			//await farmerTest.SwitchTest();
 			//await farmerTest.TestLogin();
-			await farmerTest.TestProceedCard();
+			//await farmerTest.TestProceedCard();
 			//await farmerTest.TestGetRewardsPoints();
 			//await farmerTest.TestGetCards();
+			await farmerTest.RunSearchesTest(10);
 
 			stopWatch.Stop();
 
@@ -96,9 +108,11 @@ namespace MicrosoftRewardsFarmer
 		private static void MultiTest()
 		{
 			var credential = Settings.Accounts[0];
-			int n = 2;
+			int n = 10;
 			var tasks = new Task[n];
 			Task task;
+			var stopWatch = new Stopwatch();
+
 
 			for (int i = 0; i < n; i++)
 			{
@@ -106,12 +120,20 @@ namespace MicrosoftRewardsFarmer
 
 				task = Task.Run(async () =>
 					//await farmerTest.RunSearchesTest()
-					await farmerTest.TestGoTo()
+					//await farmerTest.TestGoTo()
+					farmerTest.RunRandomWordGenTest(255)
 				);
 				tasks[i] = task;
 			}
 
+			stopWatch.Start();
+
 			Task.WaitAll(tasks);
+
+			stopWatch.Stop();
+
+			var time = new DateTime(stopWatch.ElapsedTicks);
+			Console.WriteLine("Test time: " + time.ToString("HH:mm:ss.fff"));
 		}
 
 		private static void SetExitSignal()
