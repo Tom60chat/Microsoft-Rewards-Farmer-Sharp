@@ -155,7 +155,10 @@ namespace MicrosoftRewardsFarmer
 
         private static Settings GetSettings()
 		{
-			var settingsJson = File.ReadAllText("Settings.json");
+			string exeFilePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+			string workPath = Path.GetDirectoryName(exeFilePath);
+			string path = Path.GetFullPath(workPath + @"\Settings.json");
+			var settingsJson = File.ReadAllText(path);
 			return JsonConvert.DeserializeObject<Settings>(settingsJson);
 		}
 #endregion
