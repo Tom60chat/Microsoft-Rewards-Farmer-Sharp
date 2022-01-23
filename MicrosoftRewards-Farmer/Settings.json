@@ -2,5 +2,20 @@
   "Accounts": [{
       "Username": "you@domain.com",
       "Password": "yourPassword"
+    }],
+  "Rewards": [{
+      "Title": "1 Month of Xbox Game Pass for PC",
+      "Cost": 10000,
+      "Discounted": 6800
+    },
+    {
+      "Title": "$10 Xbox Gift Card",
+      "Cost": 10000,
+      "Discounted": 6300
+    },
+    {
+      "Title": "1 Month of Xbox Game Pass Ultimate",
+      "Cost": 14000,
+      "Discounted": 12000
     }]
 }
