@@ -24,28 +24,25 @@ namespace MicrosoftRewardsFarmer
 		#region Methods
 		static void Main(string[] args)
 		{
-			bool headless = false;
 
 			foreach(var arg in args)
 				switch (arg)
 				{
 					case "-h":
 					case "-headless":
-						headless = true;
-							break;
+						AppOptions.Headless = true;
+						break;
+
+					case "-ns":
+					case "-nosession":
+						AppOptions.NoSession = true;
+						break;
 				}
 
 			Settings = GetSettings();
 
             SetExitSignal(); // Stop farming when the console close (Close all opened browsers)
-#if !DEBUG || true
-			StartFarming(headless);
-#else
-			//Test().GetAwaiter().GetResult();
-			MultiTest();
-			//StartFarming();
-			//SlowFarm();
-#endif
+			StartFarming();
 
 			Console.WriteLine("Every accounts has finish!");
 			Console.WriteLine("Press any key to close");
@@ -54,7 +51,7 @@ namespace MicrosoftRewardsFarmer
 #endif
 		}
 
-		private static void SlowFarm()
+		/*private static void SlowFarm()
 		{
 			int i = 0;
 
@@ -64,15 +61,15 @@ namespace MicrosoftRewardsFarmer
 				farmer.FarmPoints(i).GetAwaiter().GetResult();
 				i++;
 			}
-		}
+		}*/
 
-        private static void StartFarming(bool headless = false)
+        private static void StartFarming()
 		{
 			int i = 0;
 
 			foreach (var credentials in Settings.Accounts)
 			{
-				var farmer = new Farmer(credentials, headless);
+				var farmer = new Farmer(credentials);
 				farmers.Add(farmer);
 				tasks.Add(farmer.FarmPoints(i));
 				i++;
@@ -81,31 +78,7 @@ namespace MicrosoftRewardsFarmer
 			Task.WaitAll(tasks.ToArray());
 		}
 
-		private static async Task Test()
-		{
-			var credential = Settings.Accounts[0];
-
-			var farmerTest = new FarmerTest(credential);
-
-			var stopWatch = new Stopwatch();
-
-			stopWatch.Start();
-
-			//farmerTest.TestDisplayRedemptionOptions();
-			//await farmerTest.SwitchTest();
-			//await farmerTest.TestLogin();
-			//await farmerTest.TestProceedCard();
-			//await farmerTest.TestGetRewardsPoints();
-			//await farmerTest.TestGetCards();
-			await farmerTest.RunSearchesTest(10);
-
-			stopWatch.Stop();
-
-			var time = new DateTime(stopWatch.ElapsedTicks);
-			Console.WriteLine("Test time: " + time.ToString("HH:mm:ss.fff"));
-		}
-
-		private static void MultiTest()
+		/*private static void MultiTest()
 		{
 			var credential = Settings.Accounts[0];
 			int n = 10;
@@ -134,7 +107,7 @@ namespace MicrosoftRewardsFarmer
 
 			var time = new DateTime(stopWatch.ElapsedTicks);
 			Console.WriteLine("Test time: " + time.ToString("HH:mm:ss.fff"));
-		}
+		}*/
 
 		private static void SetExitSignal()
 		{
@@ -155,9 +128,7 @@ namespace MicrosoftRewardsFarmer
 
         private static Settings GetSettings()
 		{
-			string exeFilePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-			string workPath = Path.GetDirectoryName(exeFilePath);
-			string path = Path.GetFullPath(workPath + @"\Settings.json");
+			string path = AppPath.GetFullPath(@"\Settings.json");
 			var settingsJson = File.ReadAllText(path);
 			return JsonConvert.DeserializeObject<Settings>(settingsJson);
 		}

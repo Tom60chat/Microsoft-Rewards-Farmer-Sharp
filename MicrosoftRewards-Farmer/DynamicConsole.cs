@@ -68,6 +68,10 @@ namespace MicrosoftRewardsFarmer
         /// <param name="top">Line</param>
         public static void ClearLine(int top)
         {
+            // You can't use System.Console with xUnit
+            if (Console.Title.EndsWith("testhost.exe"))
+                return;
+
             int oldLeft = Console.CursorLeft;
             int oldTop = Console.CursorTop;
 
@@ -96,6 +100,10 @@ namespace MicrosoftRewardsFarmer
         /// </return>
         public static int CustomAction(Action action, int left, int top)
         {
+            // You can't use System.Console with xUnit
+            if (Console.Title.EndsWith("testhost.exe"))
+                return 0;
+
             int newLeft = 0;
 
             lock (DynamicConsoleLock)

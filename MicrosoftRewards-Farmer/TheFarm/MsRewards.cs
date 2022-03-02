@@ -1,11 +1,12 @@
 ﻿using PuppeteerSharp;
 using System;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MicrosoftRewardsFarmer.TheFarm
 {
-    internal class MsRewards
+	public class MsRewards
 	{
 		#region Constructors
 		public MsRewards(Farmer farmer)
@@ -19,7 +20,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#endregion
 
 		#region Methods
-		internal async Task<uint> GetRewardsPointsAsync()
+		public async Task<uint> GetRewardsPointsAsync()
 		{
 			farmer.WriteStatus("Obtaining the number of current reward points...");
 
@@ -37,7 +38,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 			await farmer.MainPage.WaitForSelectorAsync("span[id=\"id_rc\"]");
 			await farmer.MainPage.WaitTillHTMLRendered();
-			//await farmer.Page.WaitForTimeoutAsync(500); // Let animation finish // Need
+			//await farmer.MainPage.WaitForTimeoutAsync(500); // Let animation finish // Need
 			uint points = 0;
 
 			while (true)
@@ -56,7 +57,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 		}
 
-		internal async Task GetCardsAsync()
+		public async Task GetCardsAsync()
 		{
 			farmer.WriteStatus("Gettings cards...");
 
@@ -85,7 +86,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 					}
 					catch (PuppeteerException) { continue; } // Not a HTMLElement
 
-					var cardPage = promise.Result.Result; // This is stupid
+					var cardPage = await promise; // This is stupid
 					if (cardPage == null) // This method work very well so if the new page is null it's because theire no new farmer.Page.
 						continue;
 
@@ -96,7 +97,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 					promise = farmer.Browser.PromiseNewPage();
 					await cardPage.CloseAsync();
-					promise.GetAwaiter().GetResult().GetAwaiter().GetResult(); // This is even more stupid
+					await promise;
 				}
 			}
 		}
@@ -107,7 +108,15 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 			while (!farmer.MainPage.Url.StartsWith("https://rewards.microsoft.com/")) // Network issue, you know
 			{
+				// If we lost the session
+				if (farmer.MainPage.Url.StartsWith("https://login.live.com/"))
+				{
+					await farmer.Bing.LoginToMicrosoftAsync();
+					await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
+				}
+
 				await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
+				await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
 
 				// Bruteforce this page
 				while (farmer.MainPage.Url.StartsWith("https://rewards.microsoft.com/welcome"))
@@ -116,6 +125,10 @@ namespace MicrosoftRewardsFarmer.TheFarm
 					{
 						// Wait the button to be enabled
 						await farmer.MainPage.WaitForSelectorToHideAsync("a[id=\"start-earning-rewards-link\"][disabled=\"disabled\"]");
+
+						// If cookies, delete it !
+						if (await farmer.MainPage.QuerySelectorAsync("#wcpConsentBannerCtrl") != null)
+							await farmer.MainPage.RemoveAsync("#wcpConsentBannerCtrl");
 
 						// Click on the "Sign up to Rewards" link (Name can't be wrong I have the french version so...)
 						await farmer.MainPage.ClickAsync("#start-earning-rewards-link");
@@ -144,6 +157,10 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		{
 			ElementHandle element;
 
+			// If cookies, delete it !
+			if (await farmer.MainPage.QuerySelectorAsync("#wcpConsentBannerCtrl") != null)
+				await farmer.MainPage.RemoveAsync("#wcpConsentBannerCtrl");
+
 			// Wellcome (75 points it's not worth) // TODO: Remove function
 			await farmer.MainPage.RemoveAsync("div[ui-view=\"modalContent\"]");
 			await farmer.MainPage.RemoveAsync("div[role=\"presentation\"]");
@@ -155,7 +172,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 		}
 
-		internal async Task ProceedCard(Page cardPage)
+		public async Task ProceedCard(Page cardPage)
 		{
 			// Wait quest pop off
 			ElementHandle element;
@@ -228,23 +245,6 @@ namespace MicrosoftRewardsFarmer.TheFarm
 					await cardPage.WaitForSelectorToHideAsync(selector, false, 4000);
 				}
 			}
-		}
-
-		internal void DisplayRedemptionOptions(uint points)
-		{
-			StringBuilder sb = new StringBuilder();
-
-			sb.AppendLine($"Your point value of <$Green;{points}> is roughly equal to:");
-			sb.AppendLine();
-
-			foreach (var reward in Program.Settings.Rewards)
-			{
-				sb.AppendLine($"\t<$Blue;{points * 100 / reward.Cost}%> of <$White;{reward.Title}> (<$Green;{reward.Cost}> pts)");
-				sb.AppendLine($"\tor <$Blue;{points * 100 / reward.Discounted}%> of <$Green;{reward.Discounted}> pts at the discounted Level 2 rate");
-				sb.AppendLine();
-			}
-
-			ColoredConsole.WriteLine(sb.ToString());
 		}
 		#endregion
 	}

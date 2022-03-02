@@ -2,7 +2,7 @@
   "profiles": {
     "Microsoft Rewards Farmer": {
       "commandName": "Project",
-      "commandLineArgs": "-headless"
+      "commandLineArgs": "-h"
     }
   }
 }

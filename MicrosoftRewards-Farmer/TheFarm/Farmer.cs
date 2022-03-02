@@ -10,22 +10,24 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#region Constructors
 		private Farmer() { }
 
-		public Farmer(Credentials credentials, bool headless = false)
+		public Farmer(Credentials credentials)
 		{
 			Credentials = credentials;
-			this.headless = headless;
 			Bing = new Bing(this);
 			MsRewards = new MsRewards(this);
+
+			Name = Credentials.Username.Substring(0, Credentials.Username.IndexOf('@'));
 		}
 		#endregion
 
 		#region Variables
-		bool headless;
-		int consoleTop;
-		bool farming;
-		uint userPoints;
-		byte progress;
-		const byte totalProgress = 6;
+		public readonly string Name;
+
+		private int consoleTop;
+		private bool farming;
+		private uint userPoints;
+		private byte progress;
+		private const byte totalProgress = 6;
 
 		internal bool Mobile;
 		internal bool Connected;
@@ -34,19 +36,19 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#endregion
 
 		#region Properties
-		internal ViewPortOptions DefaultViewport { get; private set; }
-		internal Browser Browser { get; private set; }
-		internal Page MainPage { get; private set; }
-		internal Credentials Credentials { get; private set; }
-		internal Bing Bing { get; private set; }
-		internal MsRewards MsRewards { get; private set; }
+		public ViewPortOptions DefaultViewport { get; private set; }
+		public Browser Browser { get; private set; }
+		public Page MainPage { get; private set; }
+		public Credentials Credentials { get; protected set; }
+		public Bing Bing { get; private set; }
+		public MsRewards MsRewards { get; private set; }
 		#endregion
 
 		#region Methods
 		protected async Task Init(int consoleTop = 0)
 		{
 			this.consoleTop = consoleTop;
-			Browser = await PuppeteerUtility.GetBrowser(headless);
+			Browser = await PuppeteerUtility.GetBrowser(AppOptions.Headless);
 
 			try
 			{
@@ -75,7 +77,12 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			{
 #endif
 				// LogIn
-				await Bing.LoginToMicrosoftAsync();
+				var session = new Session(Name, MainPage);
+				WriteStatus("Checking if a saved session exists...");
+				if (session.Exists() && await session.RestoreAsync())
+					WriteStatus("Session restored");
+				else
+					await Bing.LoginToMicrosoftAsync();
 				progress++;
 
 				// Get account points
@@ -102,6 +109,9 @@ namespace MicrosoftRewardsFarmer.TheFarm
 					WriteStatus($"Done - <$Yellow;Total: {endRewardPoints}>");
 				else
 					WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
+
+				// Save session
+				await session.SaveAsync();
 #if !DEBUG || true
 			}
 			catch (Exception e)
@@ -132,10 +142,9 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 		internal void WriteStatus(string status)
         {
-			string name = Credentials.Username.Substring(0, Credentials.Username.IndexOf('@'));
 			string points = $"{userPoints} point";
 			string value =
-				$"<$Gray;[><$Green;{name}><$Gray;](><$Cyan;{progress}/{totalProgress}><$Gray;) - ><$Blue;{points}><$Gray;: >{status}";
+				$"<$Gray;[><$Green;{Name}><$Gray;](><$Cyan;{progress}/{totalProgress}><$Gray;) - ><$Blue;{points}><$Gray;: >{status}";
 
 			DynamicConsole.ClearLine(consoleTop);
 			DynamicConsole.CustomAction(

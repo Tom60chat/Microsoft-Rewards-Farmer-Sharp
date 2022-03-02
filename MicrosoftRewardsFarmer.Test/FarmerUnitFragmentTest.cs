@@ -1,16 +1,51 @@
-﻿using PuppeteerSharp;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Text;
+using MicrosoftRewardsFarmer.TheFarm;
+using Newtonsoft.Json;
+using PuppeteerSharp;
+using System.IO;
 using System.Threading.Tasks;
+using Xunit;
+using Xunit.Abstractions;
 
-namespace MicrosoftRewardsFarmer.TheFarm
+namespace MicrosoftRewardsFarmer.Test
 {
-    public class FarmerTest : Farmer
+    public abstract class FarmerUnitFragmentTest : Farmer
     {
-        public FarmerTest(Credentials credentials): base(credentials) { }
+        #region Constructors
+        public FarmerUnitFragmentTest(ITestOutputHelper output) : base(GetCredentials())
+        {
+            this.output = output;
+        }
+        #endregion
 
+        #region Variables
+        private readonly ITestOutputHelper output;
+        #endregion
+
+        #region Methods
+        public static Credentials GetCredentials()
+        {
+            var settings = GetSettings();
+            return settings.Accounts[0];
+        }
+
+        public static Settings GetSettings()
+        {
+            string path = AppPath.GetFullPath(@"\Settings.json");
+            var settingsJson = File.ReadAllText(path);
+            return JsonConvert.DeserializeObject<Settings>(settingsJson);
+        }
+
+        private async Task FastLogin()
+        {
+            var session = new Session(Name, MainPage);
+            if (!(session.Exists() && await session.RestoreAsync()))
+                await Bing.LoginToMicrosoftAsync();
+
+
+            output.WriteLine("Logged as " + Name);
+        }
+
+        [Fact]
         public async Task TestGoTo()
         {
             int n = 2;
@@ -39,6 +74,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
             Task.WaitAll(tasks);
         }
 
+        [Fact]
         public async Task TestLogin()
         {
             await Init();
@@ -46,22 +82,46 @@ namespace MicrosoftRewardsFarmer.TheFarm
             await MainPage.GoToAsync("https://bing.com");
         }
 
+        [Fact]
+        public async Task TestSession()
+        {
+            await Init();
+            var session = new Session(Name, MainPage);
+
+            if (session.Exists())
+            {
+                output.WriteLine("Session exists");
+                await session.RestoreAsync();
+            }
+            else
+            {
+                output.WriteLine("Session don't exists");
+                await Bing.LoginToMicrosoftAsync();
+                await session.SaveAsync();
+                output.WriteLine("Session saved");
+            }
+            await MainPage.GoToAsync("https://bing.com");
+        }
+
+        [Fact]
         public async Task TestGetRewardsPoints()
         {
             await Init();
-            await Bing.LoginToMicrosoftAsync();
+            await FastLogin();
             var points = await MsRewards.GetRewardsPointsAsync();
-            Console.WriteLine(points);
+            output.WriteLine(points.ToString());
         }
 
+        [Fact]
         public async Task TestGetCards()
         {
             await Init();
-            await Bing.LoginToMicrosoftAsync();
+            await FastLogin();
             await MsRewards.GetCardsAsync();
 
         }
 
+        [Fact]
         public async Task TestProceedCard()
         {
             await Init();
@@ -88,50 +148,43 @@ namespace MicrosoftRewardsFarmer.TheFarm
             await MsRewards.ProceedCard(MainPage);
         }
 
-        public async Task RunSearchesTest(byte n = 2)
+        [Fact]
+        public async Task RunSearchesTest()
         {
             await Init();
 
-            await Bing.RunSearchesAsync(n);
+            await Bing.RunSearchesAsync(10);
 
             await StopAsync();
         }
-        public void RunRandomWordGenTest(byte n = 2)
+
+        [Fact]
+        public void RunRandomWordGenTest()
         {
-            var words = RandomWord.GetWords(n);
-            //Debug.WriteLine(string.Join(',', words));
+            var words = RandomWord.GetWords(10);
+            output.WriteLine(string.Join('\n', words));
         }
 
-        public async Task SwitchTest(int n = 2)
+        [Fact]
+        public async Task SwitchTest()
         {
             await Init();
             await Bing.RunSearchesAsync(1);
 
-            for (int i = 0; i < n; i++)
-            {
-                await Bing.SwitchToMobileAsync();
-                await Task.Delay(250);
-                await Bing.SwitchToDesktopAsync();
-            }
+            await Bing.SwitchToMobileAsync();
+            await Task.Delay(250);
+            await Bing.SwitchToDesktopAsync();
 
             await StopAsync();
         }
 
-        public void TestDisplayRedemptionOptions(int n = 2)
+        /*[Fact]
+        public void TestDisplayRedemptionOptions()
         {
             var rand = new Random();
-            var tasks = new Task[n];
-            Task task;
 
-            for (int i = 0; i < n; i++)
-            {
-                task = Task.Run(() =>
-                    MsRewards.DisplayRedemptionOptions((uint)rand.Next())
-                );
-                tasks[i] = task;
-            }
-
-            Task.WaitAll(tasks);
-        }
+            MsRewards.DisplayRedemptionOptions((uint)rand.Next());
+        }*/
+        #endregion
     }
 }

@@ -2,6 +2,7 @@
 using PuppeteerSharp;
 using PuppeteerSharp.Input;
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,24 +17,25 @@ namespace MicrosoftRewardsFarmer
             return pages[0]; // TODO: Find current page
         }
 
-        public static Task<Task<Page>> PromiseNewPage(this Browser browser, int timeout = 30000)
+        public static Task<Page> PromiseNewPage(this Browser browser, int timeout = 30000)
         {
             var tokenSource = new CancellationTokenSource();
-            tokenSource.CancelAfter(timeout);
+            if (timeout != 0)
+                tokenSource.CancelAfter(timeout);
             return PromiseNewPage(browser, tokenSource.Token);
         }
 
-        public static Task<Task<Page>> PromiseNewPage(this Browser browser, CancellationToken token)
+        public static Task<Page> PromiseNewPage(this Browser browser, CancellationToken token)
         {
-            return Task.Factory.StartNew(async () =>
+            return Task.Factory.StartNew(() =>
             {
-                var pages = await browser.PagesAsync();
+                var pages = browser.PagesAsync().GetAwaiter().GetResult() ;
                 Page[] newPages = pages;
                 int pagesCount = pages.Length;
 
                 while (
                     !token.IsCancellationRequested &&
-                    (newPages = await browser.PagesAsync()).Length == pagesCount)
+                    (newPages = browser.PagesAsync().GetAwaiter().GetResult()).Length == pagesCount)
                 { }
 
                 if (token.IsCancellationRequested)
@@ -90,6 +92,39 @@ namespace MicrosoftRewardsFarmer
         }
 
         /// <summary>
+        /// Wait for a page to exit
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="targetUrl">The URL or start URL to wait for his exit</param>
+        /// <param name="timeout">Time to wait before stop waiting</param>
+        public static Task WaitForPageToExit(this Page page, string targetUrl = null, int timeout = 30000)
+        {
+            if (targetUrl == null)
+                targetUrl = page.Url;
+
+            var tokenSource = new CancellationTokenSource();
+            if (timeout != 0)
+                tokenSource.CancelAfter(timeout);
+            return WaitForPageToExit(page, targetUrl, tokenSource.Token);
+        }
+
+        /// <summary>
+        /// Wait for a page to exit
+        /// </summary>
+        /// <param name="page"></param>
+        /// <param name="targetUrl">The URL or start URL to wait for his exit</param>
+        /// <param name="token">Cancellation token</param>
+        public static async Task WaitForPageToExit(this Page page, string targetUrl, CancellationToken token)
+        {
+            while (page.Url.StartsWith(targetUrl))
+            {
+                await Task.Delay(500);
+                if (token.IsCancellationRequested)
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Try navigates to an url and promise that the navigation work.
         /// </summary>
         /// <param name="page"></param>
@@ -99,29 +134,38 @@ namespace MicrosoftRewardsFarmer
         /// <returns>If navigation success</returns>
         public static async Task<bool> TryGoToAsync(this Page page, string url, NavigationOptions options, int maxTry = 10)
         {
+            Response response;
             int trys = 0;
-            bool ok = false;
 
             if (page == null || string.IsNullOrEmpty(url))
                 return false;
 
-            while (!ok)
+            while (maxTry >= trys)
             {
-                if (maxTry < trys)
-                    return false;
-
                 try
                 {
-                    ok = (await page.GoToAsync(url, options)).Ok;
+                    response = await page.GoToAsync(url, options);
+                    if (response != null && response.Ok)
+                        return true;
+
+                    // May not be needed
+                    /*else if (response == null)  // NULL can happen when there is a redirection before, TODO: Check if the target page has been loaded
+                        if (page.Url.StartsWith(url))
+                            return true;
+                        else
+                        {
+                            Debug.WriteLine("wait for: " + page.Url);
+                            await page.WaitForPageToExit();
+                            if (page.Url.StartsWith(url))
+                                return true;
+                        }*/
                 }
-                catch { }
-                finally
-                {
-                    trys++;
-                }
+                catch (Exception) { }
+
+                trys++;
             }
 
-            return true;
+            return false;
         }
 
         /// <summary>

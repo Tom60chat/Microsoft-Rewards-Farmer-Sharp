@@ -1,11 +1,13 @@
-﻿using PuppeteerSharp;
+﻿using Newtonsoft.Json;
+using PuppeteerSharp;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using System.Web;
 
 namespace MicrosoftRewardsFarmer.TheFarm
 {
-    internal class Bing
+	public class Bing
 	{
 		#region Constructors
 		public Bing(Farmer farmer)
@@ -15,19 +17,20 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#endregion
 
 		#region Variables
+		private const string bingLoginURL = "https://login.live.com";
+
 		private readonly Farmer farmer;
 		#endregion
 
 		#region Methods
-		internal async Task LoginToMicrosoftAsync()
+		public async Task LoginToMicrosoftAsync()
 		{
 			farmer.WriteStatus($"LogIn...");
 
-			var url = "https://login.live.com";
 			ElementHandle element;
 			bool succes = false;
 
-			if (!await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.DOMContentLoaded))
+			if (!await farmer.MainPage.TryGoToAsync(bingLoginURL, WaitUntilNavigation.DOMContentLoaded))
 				throw new Exception("Login: navigation failed");
 
 			// Enter Username
@@ -81,7 +84,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				throw new Exception("Login error - " + message);
 			}
 
-			// Don't remind password
+			// Remind password
 			succes = false;
 
 			while (!succes &&
@@ -103,7 +106,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			farmer.Connected = true;
 		}
 
-		internal async Task RunSearchesAsync(byte numOfSearches = 20)
+		public async Task RunSearchesAsync(byte numOfSearches = 20)
 		{
 			farmer.WriteStatus($"Generation searches...");
 
@@ -123,21 +126,21 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 		private string[] GetSearchTerms(uint num = 20) => RandomWord.GetWords(num);
 
-		internal async Task SwitchToMobileAsync()
+		public async Task SwitchToMobileAsync()
 		{
 			var iPhone = Puppeteer.Devices[PuppeteerSharp.Mobile.DeviceDescriptorName.IPhone6];
 			await farmer.MainPage.EmulateAsync(iPhone);
 			farmer.Mobile = true;
 		}
 
-		internal async Task SwitchToDesktopAsync()
+		public async Task SwitchToDesktopAsync()
 		{
 			await farmer.MainPage.SetViewportAsync(farmer.DefaultViewport);
 			await farmer.MainPage.SetUserAgentAsync(farmer.DefaultUserAgent);
 			farmer.Mobile = false;
 		}
 
-		internal async Task CheckBingReady(Page page)
+		public async Task CheckBingReady(Page page)
 		{
 			ElementHandle element;
 
