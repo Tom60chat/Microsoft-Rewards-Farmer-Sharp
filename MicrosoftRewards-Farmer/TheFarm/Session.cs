@@ -35,11 +35,13 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 
 		#region Methods
-		public bool Exists() => Directory.Exists(sessionPath);
+		public bool Exists() => !AppOptions.NoSession && Directory.Exists(sessionPath);
 
 		/// <summary> Save the current session of the current page </summary>
 		public async Task SaveAsync()
 		{
+			if (AppOptions.NoSession) return;
+
 			Directory.CreateDirectory(sessionPath);
 
 			var cookies = await page.GetCookiesAsync();
@@ -55,6 +57,8 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		/// <returns> If the session was successfully restored </returns>
 		public async Task<bool> RestoreAsync()
 		{
+			if (AppOptions.NoSession) return false;
+
 			if (Exists())
 			{
 				var url = new Uri(page.Url);
