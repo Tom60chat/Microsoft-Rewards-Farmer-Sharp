@@ -217,12 +217,29 @@ namespace MicrosoftRewardsFarmer
         /// <returns>Task</returns>
         public static async Task ReplaceAllTextAsync(this Page page, string selector, string text, TypeOptions options = null)
         {
-            await page.FocusAsync(selector);
-            await page.Keyboard.DownAsync("Control");
-            await page.Keyboard.PressAsync("A");
-            await page.Keyboard.UpAsync("Control");
-            await page.Keyboard.PressAsync("Backspace");
-            await page.Keyboard.TypeAsync(text, options);
+            ElementHandle element;
+
+            while (true)
+            {
+                await page.FocusAsync(selector);
+                await page.Keyboard.DownAsync("Control");
+                await page.Keyboard.PressAsync("A");
+                await page.Keyboard.UpAsync("Control");
+                await page.Keyboard.PressAsync("Backspace");
+                await page.Keyboard.TypeAsync(text, options);
+
+
+                element = await page.QuerySelectorAsync(selector);
+                if (element != null)
+                {
+                    var value = await page.GetValueAsync(selector);
+
+                    if (value != text)
+                        continue;
+                }
+
+                return;
+            }
         }
 
         /// <summary>
@@ -235,7 +252,8 @@ namespace MicrosoftRewardsFarmer
         public static Task<bool> WaitForSelectorToHideAsync(this Page page, string selector, bool visibilityCheck = false, int timeout = 30000)
         {
             var tokenSource = new CancellationTokenSource();
-            tokenSource.CancelAfter(timeout);
+            if (timeout != 0)
+                tokenSource.CancelAfter(timeout);
             return WaitForSelectorToHideAsync(page, selector, tokenSource.Token, visibilityCheck);
         }
 
@@ -278,6 +296,11 @@ namespace MicrosoftRewardsFarmer
 			}
 		}", selector);
 
+        public static Task<JToken> AltClickAsync(this Page page, string selector) => page.EvaluateFunctionAsync(@"(sel) =>
+        {
+            document.querySelector(sel).click();
+		}", selector);
+
         public static async Task<string> GetInnerTextAsync(this Page page, string selector)
         {
             var element = await page.EvaluateFunctionAsync<JValue>(@"(sel) => {
@@ -285,7 +308,29 @@ namespace MicrosoftRewardsFarmer
 					        return element && element.innerText; // will return undefined if the element is not found
 		        }", selector);
 
-            return element.Value.ToString();
+            return element != null ? element.Value.ToString() : null;
         }
+
+        public static async Task<string> GetValueAsync(this Page page, string selector)
+        {
+            var element = await page.EvaluateFunctionAsync<JValue>(@"(sel) => {
+					        const element = document.querySelector(sel);
+					        return element && element.value; // will return undefined if the element is not found
+		        }", selector);
+
+            return element != null ? element.Value.ToString() : null;
+        }
+
+        public static void SetConsoleOutput(this Page page) =>
+            page.Console += async (_, msg) => {
+                const string TAG = "[JS Console] ";
+
+                if (msg.Message.Args != null)
+                    foreach (var msgArg in msg.Message.Args)
+                        try { Debug.WriteLine(TAG + await msgArg.JsonValueAsync()); } catch { }
+
+                /*if (msg.Message.Text != null)
+                    Debug.WriteLine(TAG + msg.Message.Text);*/
+            };
     }
 }

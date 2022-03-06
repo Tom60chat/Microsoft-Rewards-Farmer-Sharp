@@ -24,25 +24,34 @@ namespace MicrosoftRewardsFarmer.Test
         #region Methods
         public static Credentials GetCredentials()
         {
-            var settings = GetSettings();
-            return settings.Accounts[0];
-        }
-
-        public static Settings GetSettings()
-        {
-            string path = AppPath.GetFullPath(@"\Settings.json");
-            var settingsJson = File.ReadAllText(path);
-            return JsonConvert.DeserializeObject<Settings>(settingsJson);
+            var settings = Settings.GetSettings();
+            if (settings.Accounts == null)
+                throw new System.Exception("Missing accounts");
+            else
+                return settings.Accounts[0];
         }
 
         private async Task FastLogin()
         {
             var session = new Session(Name, MainPage);
-            if (!(session.Exists() && await session.RestoreAsync()))
+            if (!(
+                session.Exists() &&
+                await Bing.GoToBingAsync() &&
+                await session.RestoreAsync()
+                ))
                 await Bing.LoginToMicrosoftAsync();
 
+            Connected = true;
 
             output.WriteLine("Logged as " + Name);
+        }
+
+
+        [Fact]
+        public void TestSettings()
+        {
+            var settings = Settings.GetSettings();
+            Assert.NotNull(settings);
         }
 
         [Fact]
@@ -83,24 +92,29 @@ namespace MicrosoftRewardsFarmer.Test
         }
 
         [Fact]
-        public async Task TestSession()
+        public async Task TestSaveSession()
+        {
+            await Init();
+            await Bing.LoginToMicrosoftAsync();
+            var session = new Session(Name, MainPage);
+
+            Assert.True(await Bing.GoToBingAsync());
+            await session.SaveAsync();
+            Assert.True(await MainPage.TryGoToAsync("https://rewards.microsoft.com/", WaitUntilNavigation.Networkidle0));
+            await session.SaveAsync();
+        }
+
+        [Fact]
+        public async Task TestRestoreSession()
         {
             await Init();
             var session = new Session(Name, MainPage);
 
-            if (session.Exists())
-            {
-                output.WriteLine("Session exists");
-                await session.RestoreAsync();
-            }
-            else
-            {
-                output.WriteLine("Session don't exists");
-                await Bing.LoginToMicrosoftAsync();
-                await session.SaveAsync();
-                output.WriteLine("Session saved");
-            }
-            await MainPage.GoToAsync("https://bing.com");
+            Assert.True(await Bing.GoToBingAsync());
+            Assert.True(await session.RestoreAsync());
+            Assert.True(await MainPage.TryGoToAsync("https://rewards.microsoft.com/", WaitUntilNavigation.Networkidle0));
+            Assert.True(await session.RestoreAsync());
+            Assert.True(await MsRewards.GetRewardsPointsAsync() > 0);
         }
 
         [Fact]

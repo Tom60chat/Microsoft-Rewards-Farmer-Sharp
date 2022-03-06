@@ -12,11 +12,42 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 		public Farmer(Credentials credentials)
 		{
-			Credentials = credentials;
+			if (credentials == null)
+			{
+				WriteStatus("[Exception] Farmer - No account found");
+				farming = true; // It's cheating
+			}
+			else
+			{
+				Credentials = credentials;
+
+				if (credentials.Username == null)
+				{
+					WriteStatus("[Exception] Farmer - No username found");
+					farming = true; // It's cheating
+				}
+				else if (credentials.Username == "")
+				{
+					WriteStatus("[Exception] Farmer - Empty username");
+					farming = true; // It's cheating
+				}
+				else
+					Name = Credentials.Username.Substring(0, Credentials.Username.IndexOf('@'));
+
+				if (credentials.Password == null)
+				{
+					WriteStatus("[Exception] Farmer - No password found");
+					farming = true; // It's cheating
+				}
+				else if (AppOptions.Headless && credentials.Password == "")
+				{
+					WriteStatus("[Exception] Farmer - Empty password");
+					farming = true; // It's cheating
+				}
+			}
+
 			Bing = new Bing(this);
 			MsRewards = new MsRewards(this);
-
-			Name = Credentials.Username.Substring(0, Credentials.Username.IndexOf('@'));
 		}
 		#endregion
 
@@ -25,13 +56,13 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 		private int consoleTop;
 		private bool farming;
-		private uint userPoints;
+		private int userPoints;
 		private byte progress;
-		private const byte totalProgress = 6;
+		private const byte totalProgress = 8;
 
-		internal bool Mobile;
-		internal bool Connected;
-		internal readonly string DefaultUserAgent =
+		public bool Mobile;
+		public bool Connected;
+		public readonly string DefaultUserAgent =
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36 Edg/93.0.961.52";
 		#endregion
 
@@ -57,6 +88,9 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				DefaultViewport = MainPage.Viewport;
 
 				await MainPage.SetUserAgentAsync(DefaultUserAgent);
+#if DEBUG
+				MainPage.SetConsoleOutput();
+#endif
 			}
 			catch (Exception e)
 			{
@@ -78,10 +112,20 @@ namespace MicrosoftRewardsFarmer.TheFarm
 #endif
 				// LogIn
 				var session = new Session(Name, MainPage);
-				WriteStatus("Checking if a saved session exists...");
-				if (session.Exists() && await session.RestoreAsync())
-					WriteStatus("Session restored");
-				else
+				if (session.Exists())
+				{
+					WriteStatus("Restoring session...");
+
+					if (await Bing.GoToBingAsync())
+					{
+						await session.RestoreAsync();
+
+						if (await MainPage.TryGoToAsync("https://rewards.microsoft.com/", WaitUntilNavigation.Networkidle0))
+							Connected = await session.RestoreAsync();
+					}
+				}
+
+				if (!Connected)
 					await Bing.LoginToMicrosoftAsync();
 				progress++;
 
@@ -93,6 +137,10 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				await MsRewards.GetCardsAsync();
 				progress++;
 
+				// Saving MsRewards session
+				await session.SaveAsync();
+				progress++;
+
 				// Run seaches
 				await Bing.RunSearchesAsync((90 / 3) + 4); // 90 points max / 3 points per page
 				progress++;
@@ -101,17 +149,18 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				await Bing.RunSearchesAsync(60 / 3); // 60 points max / 3 points per page
 				progress++;
 
+				// Saving Bing session
+				await session.SaveAsync();
+				progress++;
+
 				// Get end points
 				var endRewardPoints = await MsRewards.GetRewardsPointsAsync();
 				progress++;
 
-				if (userPoints == 0)
+				if (userPoints <= 0)
 					WriteStatus($"Done - <$Yellow;Total: {endRewardPoints}>");
 				else
 					WriteStatus($"Done - Gain: {endRewardPoints - userPoints} - <$Yellow;Total: {endRewardPoints}>");
-
-				// Save session
-				await session.SaveAsync();
 #if !DEBUG || true
 			}
 			catch (Exception e)
@@ -150,6 +199,10 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			DynamicConsole.CustomAction(
 						() => ColoredConsole.WriteLine(value),
 						0, consoleTop);
+
+#if DEBUG
+			Debug.WriteLine($"[{Name}]({progress}/{totalProgress}) - {points}: {status}");
+#endif
 		}
 		#endregion
 	}

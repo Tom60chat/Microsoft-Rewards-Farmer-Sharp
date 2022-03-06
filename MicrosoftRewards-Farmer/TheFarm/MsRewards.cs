@@ -1,7 +1,9 @@
-﻿using PuppeteerSharp;
+﻿using Newtonsoft.Json.Linq;
+using PuppeteerSharp;
 using System;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MicrosoftRewardsFarmer.TheFarm
@@ -20,41 +22,49 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#endregion
 
 		#region Methods
-		public async Task<uint> GetRewardsPointsAsync()
+		public async Task<int> GetRewardsPointsAsync()
 		{
 			farmer.WriteStatus("Obtaining the number of current reward points...");
-
-			if (!farmer.MainPage.Url.StartsWith("https://www.bing.com/search"))
-			{
-				await farmer.Bing.RunSearchesAsync(1); // Go to Bing and connect
-				farmer.WriteStatus("Obtaining the number of current reward points...");
-			}
 
 			if (farmer.Mobile)
 			{
 				await farmer.Bing.SwitchToDesktopAsync();
-				await farmer.MainPage.ReloadAsync(null, new WaitUntilNavigation[] { WaitUntilNavigation.Networkidle0 });
-			}
-
-			await farmer.MainPage.WaitForSelectorAsync("span[id=\"id_rc\"]");
-			await farmer.MainPage.WaitTillHTMLRendered();
-			//await farmer.MainPage.WaitForTimeoutAsync(500); // Let animation finish // Need
-			uint points = 0;
-
-			while (true)
-			{
-				var pointsValue = await farmer.MainPage.GetInnerTextAsync("span[id=\"id_rc\"]");
-
-				if (uint.TryParse(pointsValue.Replace(" ", ""), out var newPoints))
-				{
-					if (points == newPoints)
-						return points;
-					else
-						points = newPoints;
-				}
-				else
+				if (!await farmer.Bing.GoToBingAsync())
 					return 0;
 			}
+
+			if (!farmer.MainPage.Url.StartsWith("https://www.bing.com/"))
+				if (!await farmer.Bing.GoToBingAsync())
+					return 0;
+
+			await farmer.MainPage.WaitTillHTMLRendered();
+
+			return await GetRewardsHeaderBalance();
+		}
+
+		public async Task<int> GetRewardsHeaderBalance()
+        {
+			var tokenSource = new CancellationTokenSource();
+			tokenSource.CancelAfter(30000);
+
+			while (!tokenSource.IsCancellationRequested)
+			{
+				var result = await farmer.MainPage.EvaluateFunctionAsync(@"() =>
+				{
+					if (typeof RewardsCreditRefresh === 'object') {
+						let points = RewardsCreditRefresh.GetRewardsHeaderBalance();
+						return isNaN(points) ? null : points;
+					} else
+						return null;
+				}");
+
+				if (result != null && result is JToken jResult && jResult.Type == JTokenType.Integer)
+					return jResult.ToObject<int>();
+				else
+					continue;
+			}
+
+			return 0;
 		}
 
 		public async Task GetCardsAsync()
@@ -91,7 +101,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 						continue;
 
 					await cardPage.WaitTillHTMLRendered();
-					await farmer.Bing.CheckBingReady(cardPage);
+					await farmer.Bing.CheckBingReady();
 					await cardPage.WaitTillHTMLRendered();
 					await ProceedCard(cardPage);
 
@@ -102,18 +112,18 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 		}
 
-		private async Task GoToMicrosoftRewardsPage()
+		public async Task GoToMicrosoftRewardsPage()
 		{
 			var url = "https://account.microsoft.com/rewards";
 
 			while (!farmer.MainPage.Url.StartsWith("https://rewards.microsoft.com/")) // Network issue, you know
 			{
-				// If we lost the session
+				/*// If we lost the session
 				if (farmer.MainPage.Url.StartsWith("https://login.live.com/"))
 				{
 					await farmer.Bing.LoginToMicrosoftAsync();
 					await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
-				}
+				}*/
 
 				await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
 				await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
@@ -181,7 +191,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			// Poll quest (Don't support multi quest)
 			if ((element = await cardPage.QuerySelectorAsync("div[id^=\"btoption\"]")) != null) // click 
 			{
-				await farmer.Bing.CheckBingReady(cardPage);
+				await farmer.Bing.CheckBingReady();
 
 				// Click on the first option (I wonder why it's always the first option that is the most voted 🤔)
 
@@ -195,7 +205,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			succes = false;
 			while (!succes && (element = await cardPage.QuerySelectorAsync("input[id=\"rqStartQuiz\"]")) != null)
 			{
-				await farmer.Bing.CheckBingReady(cardPage);
+				await farmer.Bing.CheckBingReady();
 
 				await element.ClickAsync();
 				succes = await cardPage.WaitForSelectorToHideAsync("input[id=\"rqStartQuiz\"]", true, 4000);
@@ -232,7 +242,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 					if (element == null) continue;
 
-					await farmer.Bing.CheckBingReady(cardPage);
+					await farmer.Bing.CheckBingReady();
 
 					while (!await element.IsVisible())
 					{

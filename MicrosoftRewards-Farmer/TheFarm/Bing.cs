@@ -28,51 +28,19 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			farmer.WriteStatus($"LogIn...");
 
 			ElementHandle element;
-			bool succes = false;
 
 			if (!await farmer.MainPage.TryGoToAsync(bingLoginURL, WaitUntilNavigation.DOMContentLoaded))
 				throw new Exception("Login: navigation failed");
 
 			// Enter Username
 			await farmer.MainPage.WaitForSelectorAsync("input[name = \"loginfmt\"]");
-			while (!succes)
-			{
-				try
-				{
-					if (await farmer.MainPage.QuerySelectorAsync("input[name = \"loginfmt\"]") == null) break;
-
-					await farmer.MainPage.ReplaceAllTextAsync("input[name = \"loginfmt\"]", farmer.Credentials.Username);
-					element = await farmer.MainPage.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
-					await element.ClickAsync();
-
-					succes = await farmer.MainPage.WaitForSelectorToHideAsync("input[name = \"loginfmt\"]", true, 4000);
-				}
-				catch (PuppeteerException) { }
-			}
+			await FillInLoginForm("input[name = \"loginfmt\"]", farmer.Credentials.Username, "#usernameError");
 
 			// Enter password
 			if (farmer.Credentials.Password != "")
-			{
-				succes = false;
-
-				await farmer.MainPage.WaitForSelectorAsync("input[name = \"passwd\"]");
-
-				while (!succes &&
-					farmer.MainPage.Url.StartsWith("https://login.live.com/"))
-				{
-					try
-					{
-						if (await farmer.MainPage.QuerySelectorAsync("input[name = \"passwd\"]") == null) break;
-
-						await farmer.MainPage.ReplaceAllTextAsync("input[name = \"passwd\"]", farmer.Credentials.Password);
-
-						element = await farmer.MainPage.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
-						await element.ClickAsync();
-						succes = await farmer.MainPage.WaitForSelectorToHideAsync("input[name = \"passwd\"]", true, 4000);
-					}
-					catch (PuppeteerException) { }
-				}
-			}
+				await FillInLoginForm("input[name = \"passwd\"]", farmer.Credentials.Password, "#passwordError");
+			else
+				await farmer.MainPage.WaitForSelectorToHideAsync("input[name = \"passwd\"]", true, 0);
 
 			await farmer.MainPage.WaitTillHTMLRendered();
 
@@ -84,11 +52,19 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				throw new Exception("Login error - " + message);
 			}
 
-			// Remind password
-			succes = false;
+			// Oops
+			element = await farmer.MainPage.QuerySelectorAsync("#idTD_Error");
+			if (element != null)
+			{
+				var messageTitle = await farmer.MainPage.GetInnerTextAsync("#idTD_Error");
+				var messageInfo = await farmer.MainPage.GetInnerTextAsync("#error_Info");
+				throw new Exception("Login error - " + messageTitle + " " + messageInfo);
+			}
 
-			while (!succes &&
-				farmer.MainPage.Url.StartsWith("https://login.live.com/"))
+			// Remind password
+			var succes = false;
+
+			while (!succes && farmer.MainPage.Url.StartsWith("https://login.live.com/"))
 			{
 				try
 				{
@@ -106,9 +82,39 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			farmer.Connected = true;
 		}
 
+		private async Task FillInLoginForm(string selector, string value, string errorSelector)
+		{
+			ElementHandle element;
+			bool succes = false;
+
+			while (!succes && farmer.MainPage.Url.StartsWith("https://login.live.com/"))
+			{
+				try
+				{
+					if (await farmer.MainPage.QuerySelectorAsync(selector) == null) break;
+
+					await farmer.MainPage.ReplaceAllTextAsync(selector, value);
+					element = await farmer.MainPage.WaitForSelectorAsync("input[id = \"idSIButton9\"]");
+					await element.ClickAsync();
+
+					succes = await farmer.MainPage.WaitForSelectorToHideAsync(selector, true, 4000);
+
+					// Check for error msg
+					element = await farmer.MainPage.QuerySelectorAsync(errorSelector);
+					if (element != null)
+					{
+						var error = await farmer.MainPage.GetInnerTextAsync(errorSelector);
+
+						throw new Exception("Login error - " + error);
+					}
+				}
+				catch (PuppeteerException) { }
+			}
+		}
+
 		public async Task RunSearchesAsync(byte numOfSearches = 20)
 		{
-			farmer.WriteStatus($"Generation searches...");
+			farmer.WriteStatus($"Generation {(farmer.Mobile ? "mobile" : "desktop")} searches...");
 
 			var url = "https://www.bing.com/search?q=";
 			var terms = GetSearchTerms(numOfSearches);
@@ -118,10 +124,21 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			{
 				i++;
 
-				farmer.WriteStatus($"Running searches {i}/{numOfSearches}");
+				farmer.WriteStatus($"Running {(farmer.Mobile ? "mobile" : "desktop")} searches {i}/{numOfSearches}");
 				await farmer.MainPage.TryGoToAsync(url + term, WaitUntilNavigation.Networkidle0);
-				await CheckBingReady(farmer.MainPage);
+				await CheckBingReady();
 			}
+		}
+
+		public async Task<bool> GoToBingAsync()
+		{
+			if (await farmer.MainPage.TryGoToAsync("https://www.bing.com/", WaitUntilNavigation.Networkidle0))
+			{
+				await farmer.MainPage.WaitTillHTMLRendered();
+				await CheckBingReady();
+				return true;
+			}
+			return false;
 		}
 
 		private string[] GetSearchTerms(uint num = 20) => RandomWord.GetWords(num);
@@ -140,56 +157,107 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			farmer.Mobile = false;
 		}
 
-		public async Task CheckBingReady(Page page)
+		public async Task CheckBingReady()
 		{
 			ElementHandle element;
 
-			// If not farmer.Connected to MR, connect to MR
-			element = await farmer.MainPage.QuerySelectorAsync("a[onclick=\"setsrchusr()\"]"); // Test this because their is a bug with bing (Error 400)
-			if (farmer.Connected && element != null)
+			if (farmer.Mobile)
 			{
-				// This page is so wrong, I have no idea why (Micro$oft?)
-				// When clicking on connect button we go into a 400 error page, but we actually sucefully connect
-				// So we juste need to redirect our selft into the page we originaly want
+				/*// Open hamburger
+				element = await farmer.MainPage.QuerySelectorAsync("#mHamburger");
+				if (element != null)
+				{
+					await element.ClickAsync();
 
-				var encodedUrl = farmer.MainPage.Url.Remove(0, 39);  //https://www.bing.com/rewards/signin?ru= {encoded redirection link}
-				var url = HttpUtility.UrlDecode(encodedUrl);
+					// If not connected, connect to Bing
+					element = await farmer.MainPage.WaitForSelectorAsync("#hb_s", new WaitForSelectorOptions { Timeout = 2000 });
+					if (farmer.Connected && element != null)
+					{
+						await farmer.MainPage.AltClickAsync("#hb_s");
+						await farmer.MainPage.WaitForSelectorToHideAsync("#hb_s", true);
+						//await farmer.MainPage.TryGoToAsync("https://www.bing.com/fd/auth/signin?action=interactive&provider=windows_live_id&return_url=https%3a%2f%2fwww.bing.com");
+						await farmer.MainPage.WaitTillHTMLRendered();
+					}
+					else
+					{
+						// Close hamburger
+						element = await farmer.MainPage.QuerySelectorAsync("#mHamburger");
+						if (element != null)
+							await element.ClickAsync();
+					}
+				}
 
-				await element.ClickAsync();
-				await farmer.MainPage.WaitForSelectorToHideAsync("a[onclick=\"setsrchusr()\"]");
-				await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
+				// If cookies, eat it ! (If the methode is called two time, this is ending a as infinit loop)
+				element = await farmer.MainPage.QuerySelectorAsync("#bnp_btn_accept");
+				if (element != null)
+				{
+					while (!(await element.IsVisible())) { }
+					await element.ClickAsync();
+				}*/
 
-				await CheckBingReady(page); // To be sure the page we wanted it's clean
-				return;
 			}
-
-			// If cookies, eat it !
-			element = await farmer.MainPage.QuerySelectorAsync("button[id=\"bnp_btn_accept\"]");
-			if (element != null)
+			else
 			{
-				while (!(await element.IsVisible())) { }
-				await element.ClickAsync();
-			}
+				// If not connected to MR, connect to MR
+				element = await farmer.MainPage.QuerySelectorAsync("a[onclick=\"setsrchusr()\"]"); // Test this because their is a bug with bing (Error 400)
+				if (farmer.Connected && element != null)
+				{
+					// This page is so wrong, I have no idea why (Micro$oft?)
+					// When clicking on connect button we go into a 400 error page, but we actually sucefully connect
+					// So we juste need to redirect our selft into the page we originaly want
 
-			// If Bing Wallpater, kill it without mercy !
-			element = await farmer.MainPage.QuerySelectorAsync("span[id=\"bnp_hfly_cta2\"]");
-			if (element != null)
-			{
-				while (!(await element.IsVisible())) { }
-				await element.ClickAsync();
-			}
+					var encodedUrl = farmer.MainPage.Url.Remove(0, 39);  //https://www.bing.com/rewards/signin?ru= {encoded redirection link}
+					var url = HttpUtility.UrlDecode(encodedUrl);
 
-			// If not farmer.Connected, connect to Bing
-			element = await farmer.MainPage.QuerySelectorAsync("input[id=\"id_a\"]");
-			if (farmer.Connected && element != null)
-			{
-				await element.ClickAsync();
-				await farmer.MainPage.WaitForSelectorToHideAsync("input[id=\"id_a\"]");
-			}
+					await element.ClickAsync();
+					await farmer.MainPage.WaitForSelectorToHideAsync("a[onclick=\"setsrchusr()\"]");
+					await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
 
-			// Oh poop
-			if (farmer.MainPage.Url.StartsWith("https://account.live.com/proofs/Verify"))
-				throw new Exception("Bing error - This account must be verified.");
+					await CheckBingReady(); // To be sure the page we wanted it's clean
+					return;
+				}
+
+				// If cookies, eat it ! (If the methode is called two time, this is ending a as infinit loop)
+				element = await farmer.MainPage.QuerySelectorAsync("#bnp_btn_accept");
+				if (element != null)
+				{
+					//while (!(await element.IsVisible())) { }
+					if (await element.IsVisible())
+						await element.ClickAsync();
+				}
+
+				// If Bing Wallpater, kill it without mercy !
+				element = await farmer.MainPage.QuerySelectorAsync("span[id=\"bnp_hfly_cta2\"]");
+				if (element != null)
+				{
+					//while (!(await element.IsVisible())) { }
+					if (await element.IsVisible())
+						await element.ClickAsync();
+				}
+
+				// If not connected, connect to Bing
+				element = await farmer.MainPage.QuerySelectorAsync("#id_a");
+				if (farmer.Connected && element != null && await element.IsVisible())
+				{
+					var url = farmer.MainPage.Url;
+					await farmer.MainPage.TryGoToAsync("https://www.bing.com/fd/auth/signin?action=interactive&provider=windows_live_id&return_url=https%3a%2f%2fwww.bing.com", WaitUntilNavigation.Networkidle0);
+					await farmer.MainPage.WaitTillHTMLRendered();
+
+					if (farmer.MainPage.Url.StartsWith("https://login.live.com/"))
+					{
+						await LoginToMicrosoftAsync();
+					}
+					/*await farmer.MainPage.ClickAsync("#id_a");
+					await farmer.MainPage.WaitForSelectorToHideAsync("#id_a");*/
+
+					await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
+					await CheckBingReady(); // To be sure the page we wanted it's clean
+				}
+
+				// Oh poop
+				if (farmer.MainPage.Url.StartsWith("https://account.live.com/proofs/Verify"))
+					throw new Exception("Bing error - This account must be verified.");
+			}
 		}
         #endregion
     }
