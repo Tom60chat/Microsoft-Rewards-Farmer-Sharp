@@ -34,6 +34,7 @@ Start `Microsoft Rewards Farmer.exe`
   
 Arguments:
  - Headless: `-h`, `-headless` - Hides web browser windows, reducing CPU impact.
+ - No session `-ns`, `-nosession` - Disables the session caching system.
 
 ## <a name='legal'>Legal Notice</a>
 I am not responsible for what you do with this program, USE IT AT YOUR OWN RISK!  
