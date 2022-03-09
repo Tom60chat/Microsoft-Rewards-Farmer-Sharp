@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>MicrosoftRewardsFarmer</RootNamespace>
     <AssemblyName>Microsoft Rewards Farmer</AssemblyName>
-    <Version>0.7.0</Version>
+    <Version>0.7.1</Version>
     <PackageProjectUrl>https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp</PackageProjectUrl>
     <Description>A .NET app to farm Microsoft Rewards points.</Description>
     <NeutralLanguage>en</NeutralLanguage>
