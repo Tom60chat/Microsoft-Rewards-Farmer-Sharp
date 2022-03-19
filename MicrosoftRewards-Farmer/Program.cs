@@ -15,7 +15,7 @@ namespace MicrosoftRewardsFarmer
 		static readonly List<Farmer> farmers = new List<Farmer>();
 		static readonly List<Task> tasks = new List<Task>();
 		static IExitSignal exitSignal;
-#endregion
+		#endregion
 
 		#region Properties
 		public static Settings Settings { get; private set; }
@@ -24,6 +24,8 @@ namespace MicrosoftRewardsFarmer
 		#region Methods
 		static void Main(string[] args)
 		{
+			CheckUpdate().Wait();
+
 			AppOptions.Apply(args);
 
 			Settings = Settings.GetSettings();
@@ -46,6 +48,13 @@ namespace MicrosoftRewardsFarmer
 			Console.ReadKey();
 			Console.Clear();
 		}
+
+		private static async Task CheckUpdate()
+        {
+			var github = new GithubUpdater("Tom60chat", "Microsoft-Rewards-Farmer-Sharp");
+			if (await github.CheckNewerVersion())
+				Console.WriteLine("A new version is available!");
+        }
 
         private static void StartFarming()
 		{

@@ -94,6 +94,8 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 			catch (Exception e)
 			{
+				Debug.WriteLine(e); // Send full error to debugger console
+				Logger.Write(e, Name + ": Init");
 				WriteStatus("[Exception] Init: " + e.Message);
 			}
 		}
@@ -170,6 +172,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			catch (Exception e)
 			{
 				Debug.WriteLine(e); // Send full error to debugger console
+				Logger.Write(e, Name + ": Init");
 				WriteStatus("[Exception] FarmPoints: " + e.Message);
 			}
 			finally
@@ -196,16 +199,18 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		internal void WriteStatus(string status)
         {
 			string points = $"{userPoints} point";
-			string value =
+			string coloredStatus =
 				$"<$Gray;[><$Green;{Name}><$Gray;](><$Cyan;{progress}/{totalProgress}><$Gray;) - ><$Blue;{points}><$Gray;: >{status}";
+			string normalStatus = $"[{Name}]({progress}/{totalProgress}) - {points}: {status}";
 
 			DynamicConsole.ClearLine(consoleTop);
 			DynamicConsole.CustomAction(
-						() => ColoredConsole.WriteLine(value),
+						() => ColoredConsole.WriteLine(coloredStatus),
 						0, consoleTop);
 
+			Logger.Write(normalStatus);
 #if DEBUG
-			Debug.WriteLine($"[{Name}]({progress}/{totalProgress}) - {points}: {status}");
+			Debug.WriteLine(normalStatus);
 #endif
 		}
 		#endregion
