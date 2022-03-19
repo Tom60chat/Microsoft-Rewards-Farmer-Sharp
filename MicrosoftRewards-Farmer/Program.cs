@@ -24,20 +24,7 @@ namespace MicrosoftRewardsFarmer
 		#region Methods
 		static void Main(string[] args)
 		{
-
-			foreach(var arg in args)
-				switch (arg)
-				{
-					case "-h":
-					case "-headless":
-						AppOptions.Headless = true;
-						break;
-
-					case "-ns":
-					case "-nosession":
-						AppOptions.NoSession = true;
-						break;
-				}
+			AppOptions.Apply(args);
 
 			Settings = Settings.GetSettings();
 
@@ -57,21 +44,27 @@ namespace MicrosoftRewardsFarmer
 			Console.WriteLine();
 			Console.WriteLine("Press any key to exit.");
 			Console.ReadKey();
+			Console.Clear();
 		}
 
         private static void StartFarming()
 		{
 			int i = 0;
+			var browserPath = PuppeteerUtility.GetBrowser().Result;
+
+			Console.Clear();
 
 			foreach (var credentials in Settings.Accounts)
 			{
 				var farmer = new Farmer(credentials);
 				farmers.Add(farmer);
-				tasks.Add(farmer.FarmPoints(i));
+				tasks.Add(farmer.FarmPoints(i, browserPath));
 				i++;
 			}
 
 			Task.WaitAll(tasks.ToArray());
+
+			Console.SetCursorPosition(0, Settings.Accounts.Length + 1);
 		}
 
 		private static void SetExitSignal()

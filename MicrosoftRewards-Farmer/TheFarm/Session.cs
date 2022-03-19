@@ -33,14 +33,13 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		private readonly Page page;
 		#endregion
 
-
 		#region Methods
-		public bool Exists() => !AppOptions.NoSession && Directory.Exists(sessionPath);
+		public bool Exists() => AppOptions.Session && Directory.Exists(sessionPath);
 
 		/// <summary> Save the current session of the current page </summary>
 		public async Task SaveAsync()
 		{
-			if (AppOptions.NoSession) return;
+			if (!AppOptions.Session) return;
 
 			Directory.CreateDirectory(sessionPath);
 
@@ -57,7 +56,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		/// <returns> If the session was successfully restored </returns>
 		public async Task<bool> RestoreAsync()
 		{
-			if (AppOptions.NoSession) return false;
+			if (!AppOptions.Session) return false;
 
 			if (Exists())
 			{

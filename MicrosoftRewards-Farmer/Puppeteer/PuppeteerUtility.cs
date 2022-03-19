@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -9,17 +10,21 @@ namespace MicrosoftRewardsFarmer
 {
     public static class PuppeteerUtility
     {
-        public static async Task<Browser> GetBrowser(bool headless = false)
+        public static async Task<string> GetBrowser()
         {
-            string executablePath = null;
-
             if (TryGetUserBrowser(out var browserUserPath))
-                executablePath = browserUserPath;
+                return browserUserPath;
             else if (TryGetAppBrowser(out var browserAppPath))
-                executablePath = browserAppPath;
+                return browserAppPath;
             else
-                await new BrowserFetcher().DownloadAsync();
-
+            {
+                Console.WriteLine("Downloading browser...");
+                var browserDownloaded = await new BrowserFetcher().DownloadAsync();
+                return browserDownloaded.ExecutablePath;
+            }
+        }
+        public static async Task<Browser> StartNewBrowser(string executablePath, bool headless = false)
+        {
             var br = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 ExecutablePath = executablePath,
@@ -34,10 +39,24 @@ namespace MicrosoftRewardsFarmer
         private static bool TryGetUserBrowser(out string browserPath)
         {
             browserPath = string.Empty;
-            var userBrowserPaths = new string[] {
-                "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-                "C:\\Users\\Tom60\\AppData\\Local\\Chromium\\Application\\chrome.exe"
-                };  // TODO: find installed user browsers
+            string[] userBrowserPaths = Environment.OSVersion.Platform switch
+            {
+                PlatformID.Win32NT => new string[] {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    "Google\\Chrome\\Application\\chrome.exe"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Chromium\\Application\\chrome.exe")
+                },
+                PlatformID.Unix => new string[] {
+                    // Linux
+                    "/usr/bin/chromium",
+                    "/usr/bin/chrome",
+                    // macOS
+                    "/usr/local/bin/chromium",
+                    "/usr/local/bin/chrome",
+                },
+                _ => Array.Empty<string>()
+            };
 
             foreach (var userBrowserPath in userBrowserPaths)
                 if (File.Exists(userBrowserPath))

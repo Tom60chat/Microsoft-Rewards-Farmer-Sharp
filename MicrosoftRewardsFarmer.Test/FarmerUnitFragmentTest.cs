@@ -34,18 +34,28 @@ namespace MicrosoftRewardsFarmer.Test
         private async Task FastLogin()
         {
             var session = new Session(Name, MainPage);
-            if (!(
-                session.Exists() &&
-                await Bing.GoToBingAsync() &&
-                await session.RestoreAsync()
-                ))
-                await Bing.LoginToMicrosoftAsync();
+            if (session.Exists())
+            {
+                if (await Bing.GoToBingAsync())
+                {
+                    await session.RestoreAsync();
 
-            Connected = true;
+                    if (await MainPage.TryGoToAsync("https://rewards.microsoft.com/", WaitUntilNavigation.Networkidle0))
+                        Connected = await session.RestoreAsync();
+                }
+            }
+
+            if (!Connected)
+                await Bing.LoginToMicrosoftAsync();
 
             output.WriteLine("Logged as " + Name);
         }
 
+        private async Task Init()
+        {
+            var browserPath = await PuppeteerUtility.GetBrowser();
+            await Init(browserPath);
+        }
 
         [Fact]
         public void TestSettings()
@@ -61,7 +71,8 @@ namespace MicrosoftRewardsFarmer.Test
             var tasks = new Task[n];
             Task task;
 
-            await Init();
+            var browserPath = await PuppeteerUtility.GetBrowser();
+            await Init(browserPath);
 
 
             for (int i = 0; i < n; i++)
@@ -123,6 +134,15 @@ namespace MicrosoftRewardsFarmer.Test
             await Init();
             await FastLogin();
             var points = await MsRewards.GetRewardsPointsAsync();
+            output.WriteLine(points.ToString());
+        }
+
+        [Fact]
+        public async Task TestGetSearchPoints()
+        {
+            await Init();
+            await FastLogin();
+            var points = await MsRewards.GetRewardsSearchPoints();
             output.WriteLine(points.ToString());
         }
 

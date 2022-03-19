@@ -303,12 +303,21 @@ namespace MicrosoftRewardsFarmer
 
         public static async Task<string> GetInnerTextAsync(this Page page, string selector)
         {
-            var element = await page.EvaluateFunctionAsync<JValue>(@"(sel) => {
+            var jValue = await page.EvaluateFunctionAsync<JValue>(@"(sel) => {
 					        const element = document.querySelector(sel);
 					        return element && element.innerText; // will return undefined if the element is not found
 		        }", selector);
 
-            return element != null ? element.Value.ToString() : null;
+            return jValue != null ? jValue.Value.ToString() : null;
+        }
+
+        public static async Task<string> GetInnerTextAsync(this ElementHandle element)
+        {
+            var jValue = await element.EvaluateFunctionAsync<JValue>(@"(element) => {
+					        return element && element.innerText; // will return undefined if the element is not found
+		        }", element);
+
+            return jValue != null ? jValue.Value.ToString() : null;
         }
 
         public static async Task<string> GetValueAsync(this Page page, string selector)

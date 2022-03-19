@@ -76,10 +76,10 @@ namespace MicrosoftRewardsFarmer.TheFarm
 		#endregion
 
 		#region Methods
-		protected async Task Init(int consoleTop = 0)
+		protected async Task Init(string browserPath, int consoleTop = 0)
 		{
 			this.consoleTop = consoleTop;
-			Browser = await PuppeteerUtility.GetBrowser(AppOptions.Headless);
+			Browser = await PuppeteerUtility.StartNewBrowser(browserPath, AppOptions.Headless);
 
 			try
 			{
@@ -98,13 +98,13 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 		}
 
-		public async Task FarmPoints(int consoleTop)
+		public async Task FarmPoints(int consoleTop, string browserPath)
 		{
 			if (farming) return;
 
 			farming = true;
 
-			await Init(consoleTop);
+			await Init(browserPath, consoleTop);
 
 #if !DEBUG || true
 			try
@@ -142,11 +142,15 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				progress++;
 
 				// Run seaches
-				await Bing.RunSearchesAsync((90 / 3) + 4); // 90 points max / 3 points per page
+				var points = await MsRewards.GetRewardsSearchPoints();
+				double remaningDesktopSearch = points.Total.DesktopSearch - points.Current.DesktopSearch;
+				double remaningMobileSearch = points.Total.MobileSearch - points.Current.MobileSearch;
+
+				await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningDesktopSearch / 3))); // 90 points max / 3 points per page
 				progress++;
 
 				await Bing.SwitchToMobileAsync();
-				await Bing.RunSearchesAsync(60 / 3); // 60 points max / 3 points per page
+				await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningMobileSearch / 3))); // 60 points max / 3 points per page
 				progress++;
 
 				// Saving Bing session

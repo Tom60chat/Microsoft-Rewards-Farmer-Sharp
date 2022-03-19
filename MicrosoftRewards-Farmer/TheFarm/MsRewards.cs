@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using MicrosoftRewardsFarmer.Models;
+using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
 using System;
 using System.Diagnostics;
@@ -65,6 +66,41 @@ namespace MicrosoftRewardsFarmer.TheFarm
 			}
 
 			return 0;
+		}
+
+		public async Task<SearchsPoints> GetRewardsSearchPoints()
+		{
+			int[] searchsPoints = new int[6];
+			var tokenSource = new CancellationTokenSource();
+			tokenSource.CancelAfter(30000);
+
+			while (!tokenSource.IsCancellationRequested)
+			{
+				if (await farmer.MainPage.TryGoToAsync("https://rewards.microsoft.com/pointsbreakdown", WaitUntilNavigation.Networkidle0))
+				{
+					var searchPointsElements = await farmer.MainPage.QuerySelectorAllAsync("p[class=\"pointsDetail c-subheading-3 ng-binding\"]");
+
+					for (int i = 0; i < searchPointsElements.Length; i++)
+					{
+						var searchPointsElement = searchPointsElements[i];
+						var searchPoints = await searchPointsElement.GetInnerTextAsync();
+						var points = searchPoints.Split('/');
+
+						// Current points
+						if (int.TryParse(points[0], out int currentPoints))
+							searchsPoints[i * 2] = currentPoints;
+
+						// Total points
+						if (int.TryParse(points[1], out int totalPoints))
+							searchsPoints[i * 2 + 1] = totalPoints;
+					}
+				}
+			}
+
+			return new SearchsPoints(
+				new(searchsPoints[0], searchsPoints[2], searchsPoints[4]),	// Current
+				new(searchsPoints[1], searchsPoints[3], searchsPoints[5])	// Total
+			);
 		}
 
 		public async Task GetCardsAsync()

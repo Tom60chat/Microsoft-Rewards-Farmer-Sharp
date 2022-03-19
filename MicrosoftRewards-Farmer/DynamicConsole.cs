@@ -69,7 +69,7 @@ namespace MicrosoftRewardsFarmer
         public static void ClearLine(int top)
         {
             // You can't use System.Console with xUnit
-            if (Console.Title.EndsWith("testhost.exe"))
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT && Console.Title.EndsWith("testhost.exe"))
                 return;
 
             int oldLeft = Console.CursorLeft;
@@ -101,7 +101,7 @@ namespace MicrosoftRewardsFarmer
         public static int CustomAction(Action action, int left, int top)
         {
             // You can't use System.Console with xUnit
-            if (Console.Title.EndsWith("testhost.exe"))
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT && Console.Title.EndsWith("testhost.exe"))
                 return 0;
 
             int newLeft = 0;
@@ -111,7 +111,6 @@ namespace MicrosoftRewardsFarmer
                 Console.SetCursorPosition(left, top);
                 action();
                 newLeft = Console.CursorLeft;
-                //Console.SetCursorPosition(oldLeft, oldTop);
             }
 
             return newLeft;

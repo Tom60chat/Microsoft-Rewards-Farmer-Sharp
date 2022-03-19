@@ -4,7 +4,6 @@ namespace MicrosoftRewardsFarmer.Test
 {
     public class HeadlessFarmerUnitTest : FarmerUnitFragmentTest
     {
-        public HeadlessFarmerUnitTest(ITestOutputHelper output) : base(output) =>
-            AppOptions.Headless = true;
+        public HeadlessFarmerUnitTest(ITestOutputHelper output) : base(output) { }
     }
 }

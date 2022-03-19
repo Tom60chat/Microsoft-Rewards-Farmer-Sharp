@@ -24,7 +24,7 @@ namespace MicrosoftRewardsFarmer
                 Console.WriteLine("Missing Settings.json file.");
                 Console.WriteLine("This means that you need to add/recreate the Settings.json file in the root app folder.");
 
-                if (!Console.Title.EndsWith("testhost.exe"))
+                if (!(Environment.OSVersion.Platform == PlatformID.Win32NT && Console.Title.EndsWith("testhost.exe")))
                 {
                     Console.WriteLine();
                     Console.WriteLine("Press any button to exit.");
@@ -48,7 +48,7 @@ namespace MicrosoftRewardsFarmer
                 Console.WriteLine();
                 Console.WriteLine(e.Message);
 
-                if (!Console.Title.EndsWith("testhost.exe"))
+                if (!(Environment.OSVersion.Platform == PlatformID.Win32NT && Console.Title.EndsWith("testhost.exe")))
                 {
                     Console.WriteLine();
                     Console.WriteLine("Press any button to exit.");

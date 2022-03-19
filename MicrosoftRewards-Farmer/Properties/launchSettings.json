@@ -1,8 +1,11 @@
 {
   "profiles": {
     "Microsoft Rewards Farmer": {
+      "commandName": "Project"
+    },
+    "MRF.Head": {
       "commandName": "Project",
-      "commandLineArgs": "-h"
+      "commandLineArgs": "-nh"
     }
   }
 }
