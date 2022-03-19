@@ -6,7 +6,7 @@ Please read the <a href="https://github.com/Tom60chat/Microsoft-Rewards-Farmer-S
 Work on Windows, linux, macOS  
 
 ## Dependencies:
-For `All` platform package you need [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime), otherwise the platform-specific packages are standalone and don't need it.
+For `All` platform package you need [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime) (Run console apps), otherwise the platform-specific packages are standalone and don't need it.
 
 ## Installation:  
 
