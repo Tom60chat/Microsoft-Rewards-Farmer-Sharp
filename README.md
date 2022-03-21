@@ -3,7 +3,7 @@ Allows you to farm Microsoft Rewards points by one click
 
 Please read the <a href="https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp#legal"><b>Legal Notice</b></a> before use
 
-Work on Windows, linux, macOS  
+Work on Windows, linux and macOS  
 
 ## Dependencies:
 For `All` platform package you need [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime) (Run console apps), otherwise the platform-specific packages are standalone and don't need it.
