@@ -23,6 +23,10 @@ This should look like:
   "Accounts": [{
       "Username": "you@domain.com",
       "Password": "yourPassword"
+    },
+    {
+      "Username": "youSecond@domain.com",
+      "Password": "yourSecondPassword"
     }]
 }
 ```
