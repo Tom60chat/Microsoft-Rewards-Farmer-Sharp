@@ -6,14 +6,14 @@ Please read the <a href="https://github.com/Tom60chat/Microsoft-Rewards-Farmer-S
 Work on Windows, linux and macOS  
 
 ## Dependencies:
-For `All` platform package you need [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime) (Run console apps), otherwise the platform-specific packages are standalone and don't need it.
+For `All` platform package, you need [.NET Core 6](https://dotnet.microsoft.com/en-us/download/dotnet/6.0/runtime) (Run console apps), otherwise the platform-specific packages are standalone and don't need it.
 
 ## Installation:  
 
 1 - Download the [Zip file](https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp/releases) and extract it somewhere.  
 
 
-2 - Edit the `Settings.json` file by providing your Microsoft account information to the `Accounts` section.  
+2 - Edit the `Settings.json` file inside the extracted folder by providing your Microsoft account information to the `Accounts` section.  
 <!--You can put reward goals, if you want to the `Rewards` section. -->
 
 This should look like:
@@ -33,7 +33,7 @@ This should look like:
 
 ## Running
 
-Start `Microsoft Rewards Farmer.exe`  
+Start `Microsoft Rewards Farmer.exe` inside the extracted folder.
   
 Arguments:
  - Headless: `-h`, `-headless` - Hides web browser windows, reducing CPU impact.
