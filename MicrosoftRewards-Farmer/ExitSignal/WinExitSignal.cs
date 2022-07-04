@@ -54,11 +54,7 @@ namespace ExitSignal
                 case CtrlTypes.CTRL_CLOSE_EVENT:
                 case CtrlTypes.CTRL_LOGOFF_EVENT:
                 case CtrlTypes.CTRL_SHUTDOWN_EVENT:
-                    System.Diagnostics.Debug.WriteLine("heyt");
-                    if (Exit != null)
-                    {
-                        Exit(this, EventArgs.Empty);
-                    }
+                    Exit?.Invoke(this, EventArgs.Empty);
                     break;
                 default:
                     break;

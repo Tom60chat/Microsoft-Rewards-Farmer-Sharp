@@ -150,22 +150,14 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 		public async Task GoToMicrosoftRewardsPage()
 		{
-			var url = "https://account.microsoft.com/rewards";
+			const string url = "https://rewards.microsoft.com/welcome";
 
 			while (!farmer.MainPage.Url.StartsWith("https://rewards.microsoft.com/")) // Network issue, you know
 			{
-				/*// If we lost the session
-				if (farmer.MainPage.Url.StartsWith("https://login.live.com/"))
-				{
-					await farmer.Bing.LoginToMicrosoftAsync();
-					await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
-				}*/
-
 				await farmer.MainPage.TryGoToAsync(url, WaitUntilNavigation.Networkidle0);
-				await farmer.MainPage.WaitForPageToExit("https://login.live.com/"); // Wait for redirection
 
 				// Bruteforce this page
-				while (farmer.MainPage.Url.StartsWith("https://rewards.microsoft.com/welcome"))
+				while (farmer.MainPage.Url.StartsWith(url))
 				{
 					if (await farmer.MainPage.QuerySelectorAsync("#start-earning-rewards-link") != null) // Sign up (or sign in)
 					{

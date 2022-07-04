@@ -29,7 +29,7 @@ namespace MicrosoftRewardsFarmer.TheFarm
 
 			ElementHandle element;
 
-			if (!await farmer.MainPage.TryGoToAsync(bingLoginURL, WaitUntilNavigation.DOMContentLoaded))
+			if (!await farmer.MainPage.TryGoToAsync(bingLoginURL, WaitUntilNavigation.Networkidle0))
 				throw new Exception("Login: navigation failed");
 
 			// Enter Username

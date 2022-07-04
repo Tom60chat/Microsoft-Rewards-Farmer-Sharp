@@ -144,16 +144,22 @@ namespace MicrosoftRewardsFarmer.TheFarm
 				progress++;
 
 				// Run seaches
-				var points = await MsRewards.GetRewardsSearchPoints();
-				double remaningDesktopSearch = points.Total.DesktopSearch - points.Current.DesktopSearch;
-				double remaningMobileSearch = points.Total.MobileSearch - points.Current.MobileSearch;
+				while (true)
+				{
+					var points = await MsRewards.GetRewardsSearchPoints();
+					double remaningDesktopSearch = points.Total.DesktopSearch - points.Current.DesktopSearch;
+					double remaningMobileSearch = points.Total.MobileSearch - points.Current.MobileSearch;
 
-				await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningDesktopSearch / 3))); // 90 points max / 3 points per page
-				progress++;
+					if (remaningDesktopSearch + remaningMobileSearch == 0)
+						break;
 
-				await Bing.SwitchToMobileAsync();
-				await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningMobileSearch / 3))); // 60 points max / 3 points per page
-				progress++;
+					await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningDesktopSearch / 3))); // 90 points max / 3 points per page
+					progress++;
+
+					await Bing.SwitchToMobileAsync();
+					await Bing.RunSearchesAsync(Convert.ToByte(Math.Ceiling(remaningMobileSearch / 3))); // 60 points max / 3 points per page
+					progress++;
+				}
 
 				// Saving Bing session
 				await session.SaveAsync();

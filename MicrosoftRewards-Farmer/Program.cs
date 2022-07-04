@@ -79,7 +79,8 @@ namespace MicrosoftRewardsFarmer
 		private static void SetExitSignal()
 		{
 			if (Environment.OSVersion.Platform == PlatformID.Unix)
-				exitSignal = new UnixExitSignal();
+				// TODO: See why on mac, it detects that the console is closing when it is not
+				exitSignal = null; // new UnixExitSignal();
 			else if (Environment.OSVersion.Platform == PlatformID.Win32NT)
 				exitSignal = new WinExitSignal();
 

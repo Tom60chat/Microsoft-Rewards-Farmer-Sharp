@@ -20,14 +20,10 @@ namespace ExitSignal
         {
             Task.Factory.StartNew(() =>
             {
-            // blocking call to wait for any kill signal
-            int index = UnixSignal.WaitAny(signals, -1);
+                // blocking call to wait for any kill signal
+                int index = UnixSignal.WaitAny(signals, -1);
 
-                if (Exit != null)
-                {
-                    Exit(null, EventArgs.Empty);
-                }
-
+                Exit?.Invoke(null, EventArgs.Empty);
             });
         }
 

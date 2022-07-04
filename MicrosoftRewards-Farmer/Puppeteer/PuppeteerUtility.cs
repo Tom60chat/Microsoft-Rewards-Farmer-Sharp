@@ -48,12 +48,21 @@ namespace MicrosoftRewardsFarmer
                     "Chromium\\Application\\chrome.exe")
                 },
                 PlatformID.Unix => new string[] {
+                    // TODO: which chrome
+
                     // Linux
                     "/usr/bin/chromium",
                     "/usr/bin/chrome",
-                    // macOS
+
                     "/usr/local/bin/chromium",
                     "/usr/local/bin/chrome",
+                    // MacOS;
+                    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+                    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+                    // Brew
+                    "/opt/homebrew/bin/chromium",
+                    "/opt/homebrew/bin/chrome",
                 },
                 _ => Array.Empty<string>()
             };
