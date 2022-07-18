@@ -3,7 +3,7 @@ Allows you to farm Microsoft Rewards points by one click
 
 Please read the <a href="https://github.com/Tom60chat/Microsoft-Rewards-Farmer-Sharp#legal"><b>Legal Notice</b></a> before use
 
-Work on Windows, linux and macOS  
+Work on Windows, ~~linux and macOS~~  
 
 ## Help wanted
 I don't have time to deal with this app and issues right now, so any contribution is welcome.
